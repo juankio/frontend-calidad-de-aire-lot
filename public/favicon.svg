@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="porthole-grad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#14100c" />
+      <stop offset="80%" stop-color="#07090e" />
+      <stop offset="100%" stop-color="#000000" />
+    </radialGradient>
+    <linearGradient id="brass-ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="50%" stop-color="#d97706" />
+      <stop offset="100%" stop-color="#78350f" />
+    </linearGradient>
+    <linearGradient id="toxic-liquid" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="60%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#34d399" />
+    </linearGradient>
+    <filter id="emerald-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Anillo Exterior de Latón de Laboratorio -->
+  <circle cx="32" cy="32" r="30" fill="url(#brass-ring)" stroke="#451a03" stroke-width="2" />
+  <circle cx="32" cy="32" r="26" fill="url(#porthole-grad)" stroke="#78350f" stroke-width="1.5" />
+
+  <!-- Remaches perimetrales de latón -->
+  <circle cx="32" cy="5" r="1.5" fill="#fef08a" />
+  <circle cx="59" cy="32" r="1.5" fill="#fef08a" />
+  <circle cx="32" cy="59" r="1.5" fill="#fef08a" />
+  <circle cx="5" cy="32" r="1.5" fill="#fef08a" />
+
+  <!-- Matraz Erlenmeyer de Alquimia -->
+  <g filter="url(#emerald-glow)">
+    <!-- Boca y cuello del matraz -->
+    <rect x="29" y="14" width="6" height="3" rx="1" fill="#94a3b8" stroke="#cbd5e1" stroke-width="0.8" />
+    <path d="M 29.5 17 L 29.5 25 L 18 45 C 16.5 48 18 51 22 51 L 42 51 C 46 51 47.5 48 46 45 L 34.5 25 L 34.5 17 Z" 
+          fill="none" stroke="#e2e8f0" stroke-width="1.8" stroke-linejoin="round" />
+
+    <!-- Líquido reactivo hirviendo -->
+    <path d="M 20.5 44 L 24 36 Q 32 38 40 36 L 43.5 44 C 44.5 46.5 43.5 49 40 49 L 24 49 C 20.5 49 19.5 46.5 20.5 44 Z" 
+          fill="url(#toxic-liquid)" opacity="0.95" />
+    
+    <!-- Menisco superior bioluminiscente -->
+    <path d="M 24 36 Q 32 39 40 36 Q 32 34 24 36 Z" fill="#6ee7b7" />
+
+    <!-- Ojos de la Mascota Centinela dentro del matraz -->
+    <circle cx="28" cy="43" r="2.2" fill="#064e3b" />
+    <circle cx="36" cy="43" r="2.2" fill="#064e3b" />
+    <circle cx="27.3" cy="42.2" r="0.8" fill="#ffffff" />
+    <circle cx="35.3" cy="42.2" r="0.8" fill="#ffffff" />
+    <path d="M 30 46 Q 32 47.5 34 46" stroke="#064e3b" stroke-width="0.8" fill="none" stroke-linecap="round" />
+
+    <!-- Burbujas ascendentes -->
+    <circle cx="27" cy="30" r="1.4" fill="#ffffff" opacity="0.8" />
+    <circle cx="35" cy="24" r="1.1" fill="#ffffff" opacity="0.7" />
+    <circle cx="31" cy="18" r="0.9" fill="#a7f3d0" opacity="0.9" />
+
+    <!-- Vapor animado saliendo del matraz -->
+    <path d="M 32 13 Q 30 9 33 6 Q 36 3 34 0" fill="none" stroke="#34d399" stroke-width="1" stroke-linecap="round" opacity="0.6" />
+  </g>
+</svg>
