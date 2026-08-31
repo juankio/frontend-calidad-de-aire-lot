@@ -32,7 +32,7 @@ const headerStatusBadge = computed(() => {
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col overflow-y-auto overflow-x-hidden bg-[#07090e] text-slate-100 font-sans p-3 sm:p-4 gap-3 select-none">
+  <div class="h-screen flex flex-col overflow-hidden overflow-x-hidden bg-[#07090e] text-slate-100 font-sans p-3 sm:p-4 gap-3 select-none">
     <!-- Header de Latón / Cobre con Tipografía de Científico Loco -->
     <header class="relative shrink-0 rounded-2xl bg-gradient-to-r from-[#1c150c] via-[#2a1d10] to-[#1c150c] border-2 border-[#854d0e]/80 p-2.5 sm:px-4 sm:py-2 shadow-[0_8px_20px_rgba(0,0,0,0.7)]">
       <LabScrew class="absolute top-1.5 left-2" :rotation="24" />
@@ -75,7 +75,7 @@ const headerStatusBadge = computed(() => {
     </header>
 
     <!-- App Shell Zero Scroll: Mesa Superior + Banco Inferior -->
-    <main class="flex-1 flex flex-col gap-3 w-full max-w-[1750px] mx-auto min-h-0 shrink-0 pb-10">
+    <main class="flex-1 flex flex-col gap-3 w-full max-w-[1750px] mx-auto min-h-0 shrink-0">
       <!-- 1. Mesa Superior de Instrumentos -->
       <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3 shrink-0 items-center">
         <div class="md:col-span-1 lg:col-span-3 flex justify-center">
@@ -91,13 +91,7 @@ const headerStatusBadge = computed(() => {
             :risk-status="effectiveRiskStatus"
             :view-mode="viewMode"
           />
-          <button
-            @click="toggleViewMode"
-            class="mt-0.5 px-3 py-1 rounded-full bg-[#1c150c] border border-[#854d0e] text-[9.5px] font-journal font-bold text-[#fbbf24] hover:border-[#fbbf24] hover:bg-[#2b1d10] transition flex items-center gap-1.5 cursor-pointer shadow active:scale-95"
-          >
-            <Eye class="w-3 h-3 text-amber-400" />
-            <span>Cambiar Vista: {{ viewMode === 'FACE' ? 'Mascota Expresiva' : 'Manómetro Digital' }}</span>
-          </button>
+          <div class="w-full flex justify-center mt-1"><button @click="toggleViewMode" class="px-4 py-1.5 rounded-full bg-[#1c150c] border border-[#854d0e] hover:border-[#fbbf24] hover:bg-[#2b1d10] text-[10px] font-journal font-bold text-[#fbbf24] transition flex items-center justify-center gap-2 cursor-pointer shadow-[0_2px_8px_rgba(0,0,0,0.5)] active:scale-95 w-48"><Eye class="w-3.5 h-3.5 text-amber-400" /><span>Vista: {{ viewMode === 'FACE' ? 'Mascota Expresiva' : 'Manómetro Digital' }}</span></button></div>
         </div>
 
         <div class="md:col-span-2 lg:col-span-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
@@ -108,7 +102,7 @@ const headerStatusBadge = computed(() => {
       </section>
 
       <!-- 2. Banco Inferior de Instrumentación -->
-      <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 flex-1 items-stretch min-h-[400px]">
+      <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 flex-1 items-stretch min-h-0">
         <CrtOscilloscope
           :history="history"
           :risk-status="effectiveRiskStatus"

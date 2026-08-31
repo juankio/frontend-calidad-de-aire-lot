@@ -19,7 +19,7 @@ function getRadarPos(lat: number, lng: number) {
 
 <template>
   <MadLabContainer no-padding>
-    <div class="p-3 w-full flex-1 flex flex-col gap-2">
+    <div class="p-3 w-full h-full flex flex-col overflow-y-auto gap-2">
 
     <!-- Cabecera Militar Táctica -->
     <div class="flex items-center justify-between pb-1.5 border-b border-[#854d0e]/40 shrink-0">
@@ -27,7 +27,7 @@ function getRadarPos(lat: number, lng: number) {
         <Compass class="w-3.5 h-3.5 text-emerald-400" />
         <span class="text-[11px] font-journal font-bold tracking-wider text-[#fbbf24]">📡 Radar Táctico 360° & Cartografía</span>
       </div>
-      <button @click="emit('openCreateModal')" class="px-2 py-0.5 rounded bg-gradient-to-r from-emerald-700 to-emerald-900 hover:from-emerald-600 hover:to-emerald-800 border border-emerald-500/60 text-[9px] font-journal font-bold text-emerald-100 flex items-center gap-1 shadow cursor-pointer active:scale-95">
+      <button @click="emit('openCreateModal')" class="px-2.5 py-1 rounded bg-gradient-to-r from-[#92400e] via-[#b45309] to-[#78350f] hover:from-[#b45309] hover:to-[#92400e] border border-[#fbbf24]/70 text-[#fef3c7] text-[9.5px] font-journal font-bold flex items-center gap-1 shadow-[0_2px_8px_rgba(180,83,9,0.3)] cursor-pointer active:scale-95 transition-all">
         <Plus class="w-2.5 h-2.5" /> 📍 Marcar Lugar
       </button>
     </div>

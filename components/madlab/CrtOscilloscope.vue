@@ -45,7 +45,7 @@ const predCircleY = computed(() => {
 
 <template>
   <MadLabContainer no-padding>
-    <div class="p-3 w-full flex-1 flex flex-col">
+    <div class="p-3 w-full h-full flex flex-col overflow-y-auto">
     <!-- Cabecera e Instrumento -->
     <div class="flex items-center justify-between px-2 py-1 mb-2 rounded-lg bg-gradient-to-r from-[#1c1917] via-[#292524] to-[#1c1917] border border-[#854d0e]/50">
       <div class="flex items-center gap-2">

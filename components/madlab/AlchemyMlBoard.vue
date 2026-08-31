@@ -43,7 +43,7 @@ function download(layer: 'bronze' | 'silver' | 'gold', fmt: 'csv' | 'json') {
 
 <template>
   <MadLabContainer no-padding>
-    <div class="p-3 w-full flex-1 flex flex-col gap-2.5">
+    <div class="p-3 w-full h-full flex flex-col overflow-y-auto gap-2.5">
 
     <!-- Cabecera -->
     <div class="flex items-center justify-between pb-1.5 border-b border-[#854d0e]/40">
@@ -111,11 +111,11 @@ function download(layer: 'bronze' | 'silver' | 'gold', fmt: 'csv' | 'json') {
           <span class="text-[6.5px] font-journal text-stone-400 mb-1">{{ vial.sub }}</span>
           <div class="flex gap-1 w-full">
             <button @click="download(vial.id, 'csv')" :disabled="downloading === `${vial.id}-csv`"
-              class="flex-1 py-0.5 rounded bg-black/70 hover:bg-stone-800 border border-stone-700 text-[7.5px] font-mono font-bold text-amber-300 flex items-center justify-center gap-0.5 cursor-pointer">
+              class="flex-1 py-1.5 rounded bg-[#1c150c] hover:bg-[#2b1d10] border border-[#854d0e]/60 hover:border-[#fbbf24] text-[8.5px] font-mono font-bold text-amber-400 hover:text-amber-300 flex items-center justify-center gap-1 cursor-pointer transition shadow hover:shadow-[0_0_8px_rgba(245,158,11,0.2)] active:scale-95">
               <FileSpreadsheet class="w-2 h-2 text-emerald-400" /> CSV
             </button>
             <button @click="download(vial.id, 'json')" :disabled="downloading === `${vial.id}-json`"
-              class="flex-1 py-0.5 rounded bg-black/70 hover:bg-stone-800 border border-stone-700 text-[7.5px] font-mono font-bold text-cyan-300 flex items-center justify-center gap-0.5 cursor-pointer">
+              class="flex-1 py-1.5 rounded bg-[#081519] hover:bg-[#0b1e24] border border-cyan-800/60 hover:border-cyan-400 text-[8.5px] font-mono font-bold text-cyan-500 hover:text-cyan-300 flex items-center justify-center gap-1 cursor-pointer transition shadow hover:shadow-[0_0_8px_rgba(6,182,212,0.2)] active:scale-95">
               <FileCode class="w-2 h-2 text-cyan-400" /> JSON
             </button>
           </div>
