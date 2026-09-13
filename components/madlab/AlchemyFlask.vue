@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { computed, reactive, watch, onMounted } from 'vue'
+import { computed } from 'vue'
 import { FlaskConical, Flame } from 'lucide-vue-next'
-import LabScrew from './LabScrew.vue'
 import MadLabContainer from './MadLabContainer.vue'
-import anime from 'animejs'
 
 const props = withDefaults(defineProps<{
   ppm?: number
@@ -17,52 +15,16 @@ const props = withDefaults(defineProps<{
 
 function getAlchemyState(ppmValue: number) {
   if (ppmValue > 1200) {
-    return { name: 'ROJO TÓXICO', main: '#ef4444', deep: '#991b1b', light: '#fca5a5', badge: 'border-rose-500 text-rose-400 bg-rose-950/50' }
+    return { name: 'CRÍTICO / TOXICIDAD', main: '#ef4444', deep: '#991b1b', light: '#fca5a5', badge: 'border-rose-500 text-rose-400 bg-rose-950/50' }
   }
   if (ppmValue >= 700) {
-    return { name: 'ÁMBAR PESADO', main: '#f59e0b', deep: '#92400e', light: '#fde68a', badge: 'border-amber-500 text-amber-400 bg-amber-950/50' }
+    return { name: 'ALERTA / SATURACIÓN', main: '#f59e0b', deep: '#92400e', light: '#fde68a', badge: 'border-amber-500 text-amber-400 bg-amber-950/50' }
   }
-  return { name: 'VERDE LIMPIO', main: '#10b981', deep: '#065f46', light: '#a7f3d0', badge: 'border-emerald-500 text-emerald-400 bg-emerald-950/50' }
+  return { name: 'ÓPTIMO / LIMPIO', main: '#10b981', deep: '#065f46', light: '#a7f3d0', badge: 'border-emerald-500 text-emerald-400 bg-emerald-950/50' }
 }
 
 const alchemyState = computed(() => getAlchemyState(props.ppm))
-
-const liquidState = reactive({
-  height: 25,
-  mainColor: '#10b981',
-  lightColor: '#a7f3d0',
-  waveOffset: 4
-})
-
-watch(() => props.ppm, (newVal) => {
-  const newState = getAlchemyState(newVal)
-  const newHeight = Math.min(80, Math.max(25, (newVal / 2000) * 80))
-  
-  anime({
-    targets: liquidState,
-    height: newHeight,
-    mainColor: newState.main,
-    lightColor: newState.light,
-    duration: 1500,
-    easing: 'spring(1, 80, 15, 0)',
-  })
-})
-
-onMounted(() => {
-  const initial = getAlchemyState(props.ppm)
-  liquidState.height = Math.min(80, Math.max(25, (props.ppm / 2000) * 80))
-  liquidState.mainColor = initial.main
-  liquidState.lightColor = initial.light
-
-  anime({
-    targets: liquidState,
-    waveOffset: -4,
-    direction: 'alternate',
-    loop: true,
-    duration: 1200,
-    easing: 'easeInOutSine'
-  })
-})
+const liquidHeight = computed(() => Math.min(80, Math.max(25, (props.ppm / 2000) * 80)))
 </script>
 
 <template>
@@ -102,8 +64,22 @@ onMounted(() => {
         </g>
 
         <g clip-path="url(#flask-cut)">
-          <rect x="50" :y="118 - liquidState.height" width="100" :height="liquidState.height" :fill="liquidState.mainColor" opacity="0.85" />
-          <path :d="`M 50 ${118 - liquidState.height} Q 100 ${118 - liquidState.height - liquidState.waveOffset} 150 ${118 - liquidState.height} L 150 125 L 50 125 Z`" :fill="liquidState.lightColor" opacity="0.95" />
+          <!-- Líquido Reactivo con transición fluida CSS -->
+          <rect
+            x="50"
+            :y="118 - liquidHeight"
+            width="100"
+            :height="liquidHeight"
+            :fill="alchemyState.main"
+            opacity="0.85"
+            class="transition-all duration-700 ease-out"
+          />
+          <path
+            :d="`M 50 ${118 - liquidHeight} Q 100 ${118 - liquidHeight - 4} 150 ${118 - liquidHeight} L 150 125 L 50 125 Z`"
+            :fill="alchemyState.light"
+            opacity="0.95"
+            class="transition-all duration-700 ease-out"
+          />
           <circle cx="85" cy="110" r="2.2" fill="#fff" opacity="0.8" class="bubble-fast" />
           <circle cx="102" cy="112" r="1.8" fill="#fff" opacity="0.8" class="bubble-slow" />
           <circle cx="115" cy="108" r="2.5" fill="#fff" opacity="0.8" class="bubble-mid" />
@@ -126,19 +102,19 @@ onMounted(() => {
     <!-- Lecturas -->
     <div class="grid grid-cols-3 gap-2 mt-2.5 pt-2 border-t border-[#854d0e]/30 text-center">
       <div class="bg-[#1c1917]/80 p-1.5 rounded-lg border border-[#854d0e]/40">
-        <div class="text-[8.5px] font-journal text-[#fbbf24] font-bold">CO2 Aire</div>
-        <div class="text-[12px] font-mono font-black text-slate-100 mt-0.5">{{ Math.round(ppm) }}</div>
+        <div class="text-[8.5px] font-journal text-[#fbbf24] font-bold">Concentración</div>
+        <div class="text-[12px] font-mono font-black text-slate-100 mt-0.5">{{ Math.round(ppm) }} PPM</div>
       </div>
       <div class="bg-[#1c1917]/80 p-1.5 rounded-lg border border-[#854d0e]/40">
         <div class="flex items-center justify-center gap-1 text-[8.5px] font-journal text-amber-400 font-bold">
           <Flame class="w-3 h-3 text-orange-400" />
-          <span>Temp</span>
+          <span>Temperatura</span>
         </div>
         <div class="text-[12px] font-mono font-black text-slate-100 mt-0.5">{{ temperature.toFixed(1) }}°C</div>
       </div>
       <div class="bg-[#1c1917]/80 p-1.5 rounded-lg border border-[#854d0e]/40">
         <div class="text-[8.5px] font-journal text-[#fbbf24] font-bold">Volumen</div>
-        <div class="text-[12px] font-mono font-black text-slate-100 mt-0.5">{{ Math.round(liquidState.height * 4.5) }} mL</div>
+        <div class="text-[12px] font-mono font-black text-slate-100 mt-0.5">{{ Math.round(liquidHeight * 4.5) }} mL</div>
       </div>
     </div>
     </div>

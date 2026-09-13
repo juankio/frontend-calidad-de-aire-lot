@@ -55,11 +55,11 @@ Forjada bajo la arquitectura **App Shell Zero-Scroll**, la interfaz se adapta al
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────────────┐
-│  🧪 DR. AIR GUARDIAN • Consola de Laboratorio Alquímico            [🟢 ESP32 ONLINE]    │
+│  🧪 DR. AIR GUARDIAN • Consola de Laboratorio Alquímico   [🧪 MODO LOCAL / 🟢 ESP32 1:1] │
 ├──────────────────────────────────────────────────────────────────────────────────────────┤
 │  [📡 Antena Tesla]    [🔮 Cápsula GC9A01 1:1]    [⚗️ Matraz]  [🧭 Manómetro]  [⚡ Palanca]│
 ├──────────────────────────────────────────────────────────────────────────────────────────┤
-│  [📟 Osciloscopio CRT Fósforo]       [💡 Tubos Nixie ML IA]       [🛰️ Sonar Radar 360°] │
+│  [📟 Osciloscopio CRT Fósforo]       [💡 Tubos Nixie ML IA]    [🗺️ LocationsMapBoard]    │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -73,10 +73,11 @@ Forjada bajo la arquitectura **App Shell Zero-Scroll**, la interfaz se adapta al
 | **Cápsula GC9A01 (Gemelo 1:1)** | 🔮 | Simulación exacta del display circular TFT de 240x240 px del hardware físico. Soporta doble modo con botón de inspección: **Mascota Emocional Reactiva** (Zzz Dormido, Feliz, Alerta, Pánico, Recuperación) y **HUD Holográfico de Telemetría**. |
 | **Matraz Erlenmeyer Alquímico** | ⚗️ | Matraz de vidrio animado mediante vectores SVG con líquido reactivo que transmuta de verde bosque a ámbar y carmesí tóxico según los niveles de PPM. Genera burbujas ascendentes y vapor condensado dinámico. |
 | **Manómetro Analógico de Latón** | 🧭 | Medidor electromecánico vintage con aguja de amortiguación inercial, escalas cromáticas (300 a 2000+ PPM) y marco de latón cobrizo con tornillería perimetral indexada. |
-| **Palanca de Frankenstein** | ⚡ | Interruptor bipolar de cuchilla de alta tensión con física de resorte y arco de plasma animado. Permite conmutar instantáneamente entre el feed telemétrico físico del ESP32 y el inyector sintético de estrés ambiental. |
-| **Osciloscopio CRT de Fósforo** | 📟 | Monitor catódico con grilla fosforescente, líneas de barrido entrelazado (*scanlines*), graficación continua de PPM, análisis de aceleración ($\Delta$ PPM/1m) y proyección predictiva del modelo Ridge a 15 minutos. |
+| **Palanca de Frankenstein** | ⚡ | Conmutador galvánico de cuchilla de alta tensión con física de resorte. Conmuta instantáneamente entre el feed telemétrico en vivo del ESP32 y el generador local determinista de contingencia. |
+| **Osciloscopio CRT de Fósforo** | 📟 | Monitor catódico con grilla fosforescente, líneas de barrido entrelazado (*scanlines*), graficación continua de PPM, análisis de aceleración ($\Delta$ PPM/1m) y proyección predictiva a 15 minutos. |
 | **Tubos Nixie de Inferencia ML** | 💡 | Filamentos de gas neón incandescentes que muestran los coeficientes del modelo de Machine Learning ($R^2$, RMSE, confianza predictiva), matriz de correlación multivariable y registro de sesiones de muestreo. |
-| **Sonar Radar Táctico 360°** | 🛰️ | Haz de radar giratorio con persistencia de fósforo verde militar, mapa táctico nocturno georreferenciado (Leaflet/Canvas), detección de radio de cobertura geocercada y marcadores de expedición en vivo. |
+| **LocationsMapBoard (Cartografía Leaflet)** | 🗺️ | Cartografía táctica georreferenciada sobre teselas nocturnas CartoDB Dark Matter en sustitución del radar estático. Pines dinámicos semafóricos con halo de pulso (`animate-ping`), traslados suaves de cámara (`flyTo`) y bitácora interactiva de campo *"Lugares Donde Estuvimos"*. |
+| **Cátedra Universitaria EDO & Numérico** | 🎓 | Auditorio interactivo que despliega la deducción formal de balance de masa $V \frac{dC}{dt} = G - QC$, solvers comparativos en tiempo real (Euler $O(h)$ vs Runge-Kutta 4to Orden $O(h^4)$), diagnóstico de estabilidad asintótica de Dahlquist/Lipschitz ($h < 2/k$), tabla paso a paso y exportación a CSV/LaTeX. |
 
 ---
 
@@ -117,7 +118,7 @@ flowchart TB
         subgraph BOTTOM_BENCH["Banco Inferior de Instrumentación"]
             CRT["CrtOscilloscope.vue\n(Barrido CRT + Proyección ML 15m)"]
             NIXIE["AlchemyMlBoard.vue\n(Tubos Nixie + Correlación)"]
-            RADAR["GpsRadarMap.vue\n(Sonar Táctico 360° + GPS)"]
+            MAP["LocationsMapBoard.vue\n(Leaflet + CartoDB + Bitácora)"]
         end
     end
 

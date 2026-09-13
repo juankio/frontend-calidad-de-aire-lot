@@ -26,17 +26,30 @@ let isBlinking = false
 let blinkProgress = 0
 let nextBlink = 2000
 
-function handleMouseMove(e: MouseEvent) {
+// Cache de centro para evitar reflow síncrono forzado (layout thrashing) en cada mousemove
+let cachedCx = 0
+let cachedCy = 0
+let cachedRadiusX = 120
+let cachedRadiusY = 120
+
+function updateCenter() {
   if (!canvasRef.value) return
   const rect = canvasRef.value.getBoundingClientRect()
-  const cx = rect.left + rect.width / 2
-  const cy = rect.top + rect.height / 2
-  targetX = Math.max(-10, Math.min(10, (e.clientX - cx) / (rect.width / 2) * 10))
-  targetY = Math.max(-8, Math.min(8, (e.clientY - cy) / (rect.height / 2) * 8))
+  cachedCx = rect.left + rect.width / 2
+  cachedCy = rect.top + rect.height / 2
+  cachedRadiusX = (rect.width / 2) || 120
+  cachedRadiusY = (rect.height / 2) || 120
+}
+
+function handleMouseMove(e: MouseEvent) {
+  if (!cachedCx) updateCenter()
+  targetX = Math.max(-10, Math.min(10, ((e.clientX - cachedCx) / cachedRadiusX) * 10))
+  targetY = Math.max(-8, Math.min(8, ((e.clientY - cachedCy) / cachedRadiusY) * 8))
 }
 
 function renderFrame(time: number) {
   animId = requestAnimationFrame(renderFrame)
+  if (typeof document !== 'undefined' && document.hidden) return
   const canvas = canvasRef.value
   if (!canvas) return
   const ctx = canvas.getContext('2d')
@@ -204,17 +217,19 @@ function renderFrame(time: number) {
   }
 
   ctx.restore()
-  animId = requestAnimationFrame(renderFrame)
 }
 
 onMounted(() => {
+  updateCenter()
   animId = requestAnimationFrame(renderFrame)
-  window.addEventListener('mousemove', handleMouseMove)
+  window.addEventListener('mousemove', handleMouseMove, { passive: true })
+  window.addEventListener('resize', updateCenter, { passive: true })
 })
 
 onUnmounted(() => {
   if (animId) cancelAnimationFrame(animId)
   window.removeEventListener('mousemove', handleMouseMove)
+  window.removeEventListener('resize', updateCenter)
 })
 </script>
 

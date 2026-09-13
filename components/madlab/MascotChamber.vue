@@ -25,9 +25,9 @@ const bolts = Array.from({ length: 8 }, (_, i) => {
 </script>
 
 <template>
-  <div class="relative flex flex-col items-center justify-center p-3 select-none">
-    <!-- Marco Ojo de Buey de Bronce / Latón con 8 Pernos -->
-    <div class="relative w-[280px] h-[280px] sm:w-[300px] sm:h-[300px] flex items-center justify-center">
+  <div class="relative flex flex-col items-center justify-center p-1.5 sm:p-3 select-none">
+    <!-- Marco Ojo de Buey de Bronce / Latón con 8 Pernos (Adaptable: 230px Móvil / 280px Tablet / 300px Desktop) -->
+    <div class="relative w-[230px] h-[230px] sm:w-[280px] sm:h-[280px] lg:w-[300px] lg:h-[300px] flex items-center justify-center transition-all duration-300">
       <svg class="absolute inset-0 w-full h-full pointer-events-none z-10" viewBox="0 0 300 300">
         <defs>
           <radialGradient id="bronze-rim" cx="50%" cy="50%" r="50%">
@@ -57,8 +57,8 @@ const bolts = Array.from({ length: 8 }, (_, i) => {
         <ellipse cx="130" cy="100" rx="80" ry="40" fill="url(#concave-glass)" opacity="0.75" />
       </svg>
 
-      <!-- Núcleo: Widget GC9A01 Centrado 1:1 -->
-      <div class="relative z-0 scale-[0.88] sm:scale-95 transition-transform">
+      <!-- Núcleo: Widget GC9A01 Centrado 1:1 con Escala Proporcional Óptima -->
+      <div class="relative z-0 scale-[0.74] sm:scale-[0.88] lg:scale-95 transition-transform duration-300 flex items-center justify-center">
         <slot>
           <LiveMascotWidget 
             :ppm="ppm" 
@@ -73,9 +73,9 @@ const bolts = Array.from({ length: 8 }, (_, i) => {
     </div>
 
     <!-- Placa de Latón Identificadora -->
-    <div class="mt-1 flex items-center gap-1.5 px-3 py-1 rounded-md bg-gradient-to-r from-[#1c1917] via-[#292524] to-[#1c1917] border border-[#854d0e]/60 shadow-md font-journal">
+    <div class="mt-1 flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-md bg-gradient-to-r from-[#1c1917] via-[#292524] to-[#1c1917] border border-[#854d0e]/60 shadow-md font-journal text-[9.5px] sm:text-[10px]">
       <Sparkles class="w-3 h-3 text-amber-400" />
-      <span class="text-[10px] font-bold tracking-wide text-[#fbbf24]">
+      <span class="font-bold tracking-wide text-[#fbbf24]">
         Cápsula Centinela del Aire
       </span>
       <span class="w-1.5 h-1.5 rounded-full" :class="riskStatus === 'CRITICAL' ? 'bg-rose-500 animate-ping' : riskStatus === 'WARNING_PREDICTIVE' ? 'bg-amber-400' : 'bg-emerald-400'" />

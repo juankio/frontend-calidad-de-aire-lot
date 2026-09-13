@@ -2,8 +2,17 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-01-01',
   devtools: { enabled: false },
+  ignore: ['tests/**'],
   experimental: {
     appManifest: false
+  },
+  vite: {
+    build: {
+      emptyOutDir: false
+    },
+    optimizeDeps: {
+      include: ['vue', 'leaflet', 'animejs']
+    }
   },
   modules: ['@nuxtjs/tailwindcss'],
   app: {
@@ -18,7 +27,7 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
-        { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Creepster&family=Special+Elite&family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap' }
+        { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Creepster&family=Special+Elite&family=Orbitron:wght@700&family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap' }
       ]
     }
   },
