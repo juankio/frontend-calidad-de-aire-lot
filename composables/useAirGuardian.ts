@@ -22,6 +22,7 @@ export interface TelemetryState {
   source?: 'hardware' | 'simulator'
   raw_adc?: number
   raw_adc7?: number
+  mq7_raw?: number
   mpu_connected?: boolean
   eye_x: number
   eye_y: number
@@ -63,8 +64,18 @@ export interface HistoryPoint {
 }
 
 interface RawSensorPayload {
+  ppm?: number
+  co_ppm?: number
+  coPpm?: number
+  temperature?: number
+  humidity?: number
+  delta_ppm?: number
+  delta_ppm_1m?: number
+  predicted_ppm_15m?: number
+  raw_adc?: number
   raw_adc135?: number
   raw_adc7?: number
+  mq7_raw?: number
   mpu_connected?: boolean
   eye_x?: number
   eye_y?: number
@@ -73,9 +84,15 @@ interface RawSensorPayload {
   ax?: number
   ay?: number
   az?: number
+  is_shaking?: boolean
+  emotion?: string
+  device_emotion?: string
+  view_mode?: string
+  risk_status?: string
 }
 
 interface RawTelemetryPayload {
+  cmd?: string
   device_id?: string
   timestamp?: number
   ppm?: number
@@ -85,13 +102,18 @@ interface RawTelemetryPayload {
   humidity?: number
   delta_ppm_1m?: number
   delta_ppm?: number
+  slope_ppm?: number
+  ewma_ppm?: number
+  voltage?: number
   predicted_ppm_15m?: number
   risk_status?: string
+  status?: string
   session_id?: string | null
   source?: 'hardware' | 'simulator' | string
   raw_adc?: number
   raw_adc135?: number
   raw_adc7?: number
+  mq7_raw?: number
   mpu_connected?: boolean
   eye_x?: number
   eye_y?: number
@@ -115,6 +137,9 @@ interface RawTelemetryPayload {
   storage?: {
     offline_pending?: number
   }
+  raw?: RawTelemetryPayload
+  processed?: RawTelemetryPayload
+  prediction?: RawTelemetryPayload
 }
 
 const DEFAULT_SESSIONS: SessionData[] = [
@@ -171,6 +196,66 @@ const DEFAULT_SESSIONS: SessionData[] = [
 const globalSessions = ref<SessionData[]>(DEFAULT_SESSIONS)
 const globalSelectedSessionId = ref<string | null>(null)
 
+const wsConnected = ref(false)
+const usbConnected = ref(false)
+const operationMode = ref<'LOCAL' | 'LIVE'>('LIVE')
+const isSimulatorRunning = ref(false)
+const isModalOpen = ref(false)
+
+const lastPacketTime = ref<number | null>(null)
+const lastPacketSource = ref<'HARDWARE' | 'SIMULATOR' | 'NONE'>('NONE')
+const nowTick = ref(Date.now())
+let lastSeenServerTimestamp: number | null = null
+
+const telemetry = ref<TelemetryState>({
+  device_id: 'air-guardian-01',
+  timestamp: Date.now(),
+  ppm: 420,
+  co_ppm: 2.1,
+  temperature: 24.5,
+  humidity: 55,
+  delta_ppm_1m: 5,
+  predicted_ppm_15m: 435,
+  risk_status: 'OPTIMAL',
+  session_id: null,
+  raw_adc: 608,
+  raw_adc7: 1302,
+  mq7_raw: 1302,
+  mpu_connected: true,
+  eye_x: 0,
+  eye_y: 0,
+  pitch: 0,
+  roll: 0,
+  ax: 0,
+  ay: 0,
+  az: 9.8,
+  is_shaking: false,
+  free_heap: 184320,
+  uptime_s: 3600,
+  offline_pending: 0,
+  device_emotion: 'OPTIMAL',
+  view_mode: 'FACE'
+})
+
+const history = ref<HistoryPoint[]>([
+  { timestamp: Date.now() - 40000, ppm: 410, predicted_ppm_15m: 415 },
+  { timestamp: Date.now() - 30000, ppm: 415, predicted_ppm_15m: 420 },
+  { timestamp: Date.now() - 20000, ppm: 418, predicted_ppm_15m: 425 },
+  { timestamp: Date.now() - 10000, ppm: 420, predicted_ppm_15m: 430 },
+  { timestamp: Date.now(), ppm: 420, predicted_ppm_15m: 435 }
+])
+
+let socket: WebSocket | null = null
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+let fallbackPollingTimer: ReturnType<typeof setInterval> | null = null
+let tickTimer: ReturnType<typeof setInterval> | null = null
+let localMockTimer: ReturnType<typeof setInterval> | null = null
+let manualGyroLockUntil = 0
+let shakeTimer: ReturnType<typeof setInterval> | null = null
+let usbIngestDebounceTimer: ReturnType<typeof setTimeout> | null = null
+let lastUsbIngestSentAt = 0
+let activeConsumers = 0
+
 function parseRiskEmotion(raw: string): TelemetryState['device_emotion'] {
   const normalized = raw.toUpperCase().trim()
   if (normalized === 'DIZZY' || normalized === 'EMOTION_DIZZY') return 'DIZZY'
@@ -205,73 +290,24 @@ export function useAirGuardian() {
   const apiBase = (String(config.public.apiBase || 'https://servidor-taller.tailf19567.ts.net:10000')).replace(/\/+$/, '')
   const wsBase = (String(config.public.wsBase || apiBase.replace(/^http/, 'ws'))).replace(/\/+$/, '')
 
-  const wsConnected = ref(false)
-  const operationMode = ref<'LOCAL' | 'LIVE'>('LIVE')
-  const isSimulatorRunning = ref(false)
-  const isModalOpen = ref(false)
   const selectedSessionId = globalSelectedSessionId
-
-  const lastPacketTime = ref<number | null>(Date.now())
-  const lastPacketSource = ref<'HARDWARE' | 'SIMULATOR' | 'NONE'>('HARDWARE')
-  const nowTick = ref(Date.now())
-
-  const telemetry = ref<TelemetryState>({
-    device_id: 'air-guardian-01',
-    timestamp: Date.now(),
-    ppm: 420,
-    co_ppm: 2.1,
-    temperature: 24.5,
-    humidity: 55,
-    delta_ppm_1m: 5,
-    predicted_ppm_15m: 435,
-    risk_status: 'OPTIMAL',
-    session_id: null,
-    raw_adc: 608,
-    raw_adc7: 1302,
-    mpu_connected: true,
-    eye_x: 0,
-    eye_y: 0,
-    pitch: 0,
-    roll: 0,
-    ax: 0,
-    ay: 0,
-    az: 9.8,
-    is_shaking: false,
-    free_heap: 184320,
-    uptime_s: 3600,
-    offline_pending: 0,
-    device_emotion: 'OPTIMAL',
-    view_mode: 'FACE'
-  })
-
   const viewMode = computed<'FACE' | 'HUD'>(() => telemetry.value.view_mode)
-
-  const history = ref<HistoryPoint[]>([
-    { timestamp: Date.now() - 40000, ppm: 410, predicted_ppm_15m: 415 },
-    { timestamp: Date.now() - 30000, ppm: 415, predicted_ppm_15m: 420 },
-    { timestamp: Date.now() - 20000, ppm: 418, predicted_ppm_15m: 425 },
-    { timestamp: Date.now() - 10000, ppm: 420, predicted_ppm_15m: 430 },
-    { timestamp: Date.now(), ppm: 420, predicted_ppm_15m: 435 }
-  ])
-
   const sessions = globalSessions
 
-  let socket: WebSocket | null = null
-  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
-  let fallbackPollingTimer: ReturnType<typeof setInterval> | null = null
-  let tickTimer: ReturnType<typeof setInterval> | null = null
-  let localMockTimer: ReturnType<typeof setInterval> | null = null
-  let manualGyroLockUntil = 0
-  let shakeTimer: ReturnType<typeof setInterval> | null = null
-
-  const lastPacketAgeSec = computed(() => {
-    if (!lastPacketTime.value) return 999
+  const lastPacketAgeSec = computed<number | null>(() => {
+    if (lastPacketTime.value === null) return null
     return Math.max(0, Math.floor((nowTick.value - lastPacketTime.value) / 1000))
   })
 
   const hardwareStatus = computed<'ONLINE' | 'SIMULATED' | 'OFFLINE'>(() => {
     if (operationMode.value === 'LOCAL') return 'SIMULATED'
-    if (lastPacketTime.value && lastPacketAgeSec.value < 8 && lastPacketSource.value === 'HARDWARE') {
+    if (usbConnected.value) return 'ONLINE'
+    if (
+      lastPacketTime.value !== null &&
+      lastPacketAgeSec.value !== null &&
+      lastPacketAgeSec.value < 8 &&
+      lastPacketSource.value === 'HARDWARE'
+    ) {
       return 'ONLINE'
     }
     return 'OFFLINE'
@@ -279,98 +315,295 @@ export function useAirGuardian() {
 
   const effectiveRiskStatus = computed<TelemetryState['risk_status']>(() => {
     if (telemetry.value.is_shaking || telemetry.value.device_emotion === 'DIZZY') return 'DIZZY'
-    if (hardwareStatus.value === 'OFFLINE' && operationMode.value === 'LIVE') return 'SLEEPING'
+    if (
+      operationMode.value === 'LIVE' &&
+      hardwareStatus.value === 'OFFLINE' &&
+      nowTick.value >= manualGyroLockUntil &&
+      Date.now() >= manualGyroLockUntil
+    ) {
+      return 'SLEEPING'
+    }
     return telemetry.value.risk_status
   })
 
-  function applyLiveTelemetry(data: RawTelemetryPayload) {
-    if (!data) return
-    const isSim = data.source === 'simulator' || operationMode.value === 'LOCAL'
-    lastPacketSource.value = isSim ? 'SIMULATOR' : 'HARDWARE'
-    lastPacketTime.value = Date.now()
+  function mergeTelemetryLayers(...layers: Array<Record<string, any> | undefined>): RawTelemetryPayload {
+    const result: Record<string, any> = {}
+    for (const layer of layers) {
+      if (!layer || typeof layer !== 'object') continue
+      for (const [key, value] of Object.entries(layer)) {
+        if (value !== undefined && key !== 'raw' && key !== 'processed' && key !== 'prediction') {
+          if (value !== null || !(key in result)) {
+            result[key] = value
+          }
+        }
+      }
+    }
+    return result as RawTelemetryPayload
+  }
 
-    if (data.ppm !== undefined) telemetry.value.ppm = Number(data.ppm)
-    if (data.co_ppm !== undefined) telemetry.value.co_ppm = Number(data.co_ppm)
-    else if (data.coPpm !== undefined) telemetry.value.co_ppm = Number(data.coPpm)
-    if (data.temperature !== undefined) telemetry.value.temperature = Number(data.temperature)
-    if (data.humidity !== undefined) telemetry.value.humidity = Number(data.humidity)
-    if (data.delta_ppm_1m !== undefined) telemetry.value.delta_ppm_1m = Number(data.delta_ppm_1m)
-    else if (data.delta_ppm !== undefined) telemetry.value.delta_ppm_1m = Number(data.delta_ppm)
-    if (data.predicted_ppm_15m !== undefined) telemetry.value.predicted_ppm_15m = Number(data.predicted_ppm_15m)
-    if (data.risk_status) telemetry.value.risk_status = parseRiskEmotion(data.risk_status)
-    if (data.session_id !== undefined) telemetry.value.session_id = data.session_id
-    if (data.timestamp) telemetry.value.timestamp = Number(data.timestamp)
-    if (data.device_id) telemetry.value.device_id = data.device_id
+  function applyBackendSample(sampleInput: RawTelemetryPayload, markHardwareOnline = true) {
+    if (!sampleInput) return
+    const sample = mergeTelemetryLayers(
+      sampleInput as any,
+      sampleInput.raw as any,
+      sampleInput.processed as any,
+      sampleInput.prediction as any
+    )
+    const isSim = sample.source === 'simulator' || operationMode.value === 'LOCAL'
+    if (isSim) {
+      lastPacketSource.value = 'SIMULATOR'
+      lastPacketTime.value = Date.now()
+    } else if (markHardwareOnline) {
+      lastPacketSource.value = 'HARDWARE'
+      lastPacketTime.value = Date.now()
+      nowTick.value = Date.now()
+    }
 
-    if (data.raw_adc !== undefined) telemetry.value.raw_adc = Number(data.raw_adc)
-    else if (data.raw_adc135 !== undefined) telemetry.value.raw_adc = Number(data.raw_adc135)
-    else if (data.sensors?.raw_adc135 !== undefined) telemetry.value.raw_adc = Number(data.sensors.raw_adc135)
+    const s = sample.sensors
+    if (sample.ppm !== undefined) telemetry.value.ppm = Number(sample.ppm)
+    else if (s?.ppm !== undefined) telemetry.value.ppm = Number(s.ppm)
 
-    if (data.raw_adc7 !== undefined) telemetry.value.raw_adc7 = Number(data.raw_adc7)
-    else if (data.sensors?.raw_adc7 !== undefined) telemetry.value.raw_adc7 = Number(data.sensors.raw_adc7)
+    if (sample.co_ppm !== undefined) telemetry.value.co_ppm = Number(sample.co_ppm)
+    else if (sample.coPpm !== undefined) telemetry.value.co_ppm = Number(sample.coPpm)
+    else if (s?.co_ppm !== undefined) telemetry.value.co_ppm = Number(s.co_ppm)
+    else if (s?.coPpm !== undefined) telemetry.value.co_ppm = Number(s.coPpm)
 
-    if (data.mpu_connected !== undefined) telemetry.value.mpu_connected = Boolean(data.mpu_connected)
-    else if (data.sensors?.mpu_connected !== undefined) telemetry.value.mpu_connected = Boolean(data.sensors.mpu_connected)
+    if (sample.temperature !== undefined) telemetry.value.temperature = Number(sample.temperature)
+    else if (s?.temperature !== undefined) telemetry.value.temperature = Number(s.temperature)
 
-    const inEyeX = data.eye_x !== undefined ? Number(data.eye_x) : telemetry.value.eye_x
-    const inEyeY = data.eye_y !== undefined ? Number(data.eye_y) : telemetry.value.eye_y
+    if (sample.humidity !== undefined) telemetry.value.humidity = Number(sample.humidity)
+    else if (s?.humidity !== undefined) telemetry.value.humidity = Number(s.humidity)
 
-    if (Date.now() > manualGyroLockUntil) {
+    if (sample.delta_ppm_1m !== undefined) telemetry.value.delta_ppm_1m = Number(sample.delta_ppm_1m)
+    else if (sample.delta_ppm !== undefined) telemetry.value.delta_ppm_1m = Number(sample.delta_ppm)
+    else if (sample.slope_ppm !== undefined) telemetry.value.delta_ppm_1m = Number(sample.slope_ppm)
+    else if (s?.delta_ppm_1m !== undefined) telemetry.value.delta_ppm_1m = Number(s.delta_ppm_1m)
+    else if (s?.delta_ppm !== undefined) telemetry.value.delta_ppm_1m = Number(s.delta_ppm)
+
+    if (sample.predicted_ppm_15m !== undefined) {
+      telemetry.value.predicted_ppm_15m = Number(sample.predicted_ppm_15m)
+    } else if (s?.predicted_ppm_15m !== undefined) {
+      telemetry.value.predicted_ppm_15m = Number(s.predicted_ppm_15m)
+    } else {
+      telemetry.value.predicted_ppm_15m = Math.max(
+        380,
+        Math.min(10000, Math.round(telemetry.value.ppm + telemetry.value.delta_ppm_1m * 15.0 * 0.65))
+      )
+    }
+
+    const incomingRisk =
+      sample.risk_status ||
+      sample.status ||
+      s?.risk_status ||
+      sample.device_emotion ||
+      sample.emotion ||
+      s?.device_emotion ||
+      s?.emotion
+    if (incomingRisk) telemetry.value.risk_status = parseRiskEmotion(String(incomingRisk))
+    if (sample.session_id !== undefined) telemetry.value.session_id = sample.session_id
+    if (sample.timestamp) telemetry.value.timestamp = Number(sample.timestamp)
+    if (sample.device_id) telemetry.value.device_id = sample.device_id
+
+    if (sample.raw_adc !== undefined) telemetry.value.raw_adc = Number(sample.raw_adc)
+    else if (sample.raw_adc135 !== undefined) telemetry.value.raw_adc = Number(sample.raw_adc135)
+    else if (s?.raw_adc !== undefined) telemetry.value.raw_adc = Number(s.raw_adc)
+    else if (s?.raw_adc135 !== undefined) telemetry.value.raw_adc = Number(s.raw_adc135)
+
+    const rawMq7 = sample.raw_adc7 ?? sample.mq7_raw ?? s?.raw_adc7 ?? s?.mq7_raw
+    if (rawMq7 !== undefined) {
+      telemetry.value.raw_adc7 = Number(rawMq7)
+      telemetry.value.mq7_raw = Number(rawMq7)
+    }
+
+    if (sample.mpu_connected !== undefined) telemetry.value.mpu_connected = Boolean(sample.mpu_connected)
+    else if (s?.mpu_connected !== undefined) telemetry.value.mpu_connected = Boolean(s.mpu_connected)
+
+    const hasGyroPayload =
+      sample.eye_x !== undefined ||
+      sample.eye_y !== undefined ||
+      sample.roll !== undefined ||
+      sample.pitch !== undefined ||
+      s?.eye_x !== undefined ||
+      s?.eye_y !== undefined ||
+      s?.roll !== undefined ||
+      s?.pitch !== undefined
+
+    const inEyeX = sample.eye_x !== undefined
+      ? Number(sample.eye_x)
+      : (s?.eye_x !== undefined ? Number(s.eye_x) : telemetry.value.eye_x)
+    const inEyeY = sample.eye_y !== undefined
+      ? Number(sample.eye_y)
+      : (s?.eye_y !== undefined ? Number(s.eye_y) : telemetry.value.eye_y)
+
+    const rawRoll = sample.roll ?? s?.roll
+    const rawPitch = sample.pitch ?? s?.pitch
+    const shouldDeriveRollPitch =
+      rawRoll === undefined ||
+      rawPitch === undefined ||
+      (Number(rawRoll) === 0 && Number(rawPitch) === 0 && (inEyeX !== 0 || inEyeY !== 0))
+
+    if (hasGyroPayload && Date.now() > manualGyroLockUntil) {
       telemetry.value.eye_x = inEyeX
       telemetry.value.eye_y = inEyeY
-      telemetry.value.roll = data.roll !== undefined
-        ? Number(data.roll)
-        : Math.max(-35, Math.min(35, Number((inEyeX * 3.5).toFixed(1))))
-      telemetry.value.pitch = data.pitch !== undefined
-        ? Number(data.pitch)
-        : Math.max(-30, Math.min(30, Number((-inEyeY * 3.5).toFixed(1))))
+      telemetry.value.roll = shouldDeriveRollPitch
+        ? Number((inEyeX * 3.5).toFixed(1))
+        : Number(rawRoll)
+      telemetry.value.pitch = shouldDeriveRollPitch
+        ? Number((inEyeY * 3.5).toFixed(1))
+        : Number(rawPitch)
     }
 
-    if (data.ax !== undefined) telemetry.value.ax = Number(data.ax)
-    else if (data.sensors?.ax !== undefined) telemetry.value.ax = Number(data.sensors.ax)
+    if (sample.ax !== undefined) telemetry.value.ax = Number(sample.ax)
+    else if (s?.ax !== undefined) telemetry.value.ax = Number(s.ax)
 
-    if (data.ay !== undefined) telemetry.value.ay = Number(data.ay)
-    else if (data.sensors?.ay !== undefined) telemetry.value.ay = Number(data.sensors.ay)
+    if (sample.ay !== undefined) telemetry.value.ay = Number(sample.ay)
+    else if (s?.ay !== undefined) telemetry.value.ay = Number(s.ay)
 
-    if (data.az !== undefined) telemetry.value.az = Number(data.az)
-    else if (data.sensors?.az !== undefined) telemetry.value.az = Number(data.sensors.az)
+    if (sample.az !== undefined) telemetry.value.az = Number(sample.az)
+    else if (s?.az !== undefined) telemetry.value.az = Number(s.az)
 
-    if (data.free_heap !== undefined) telemetry.value.free_heap = Number(data.free_heap)
-    else if (data.hardware?.free_heap !== undefined) telemetry.value.free_heap = Number(data.hardware.free_heap)
+    if (sample.free_heap !== undefined) telemetry.value.free_heap = Number(sample.free_heap)
+    else if (sample.hardware?.free_heap !== undefined) telemetry.value.free_heap = Number(sample.hardware.free_heap)
 
-    if (data.uptime_s !== undefined) telemetry.value.uptime_s = Number(data.uptime_s)
-    else if (data.hardware?.uptime_s !== undefined) telemetry.value.uptime_s = Number(data.hardware.uptime_s)
+    if (sample.uptime_s !== undefined) telemetry.value.uptime_s = Number(sample.uptime_s)
+    else if (sample.hardware?.uptime_s !== undefined) telemetry.value.uptime_s = Number(sample.hardware.uptime_s)
 
-    if (data.offline_pending !== undefined) telemetry.value.offline_pending = Number(data.offline_pending)
-    else if (data.storage?.offline_pending !== undefined) telemetry.value.offline_pending = Number(data.storage.offline_pending)
+    if (sample.offline_pending !== undefined) telemetry.value.offline_pending = Number(sample.offline_pending)
+    else if (sample.storage?.offline_pending !== undefined) telemetry.value.offline_pending = Number(sample.storage.offline_pending)
 
-    const rawEmotion = String(data.device_emotion || data.emotion || data.risk_status || 'OPTIMAL').toUpperCase()
-    const shaking = Boolean(data.is_shaking) || rawEmotion === 'DIZZY' || Math.sqrt(inEyeX * inEyeX + inEyeY * inEyeY) > 6.0
+    const hasExplicitEmotionOrShake =
+      sample.is_shaking !== undefined ||
+      s?.is_shaking !== undefined ||
+      sample.device_emotion !== undefined ||
+      sample.emotion !== undefined ||
+      s?.device_emotion !== undefined ||
+      s?.emotion !== undefined
+
+    const rawEmotion = String(
+      sample.device_emotion ||
+      sample.emotion ||
+      s?.device_emotion ||
+      s?.emotion ||
+      sample.risk_status ||
+      sample.status ||
+      s?.risk_status ||
+      'OPTIMAL'
+    ).toUpperCase()
+    const shaking =
+      Boolean(sample.is_shaking ?? s?.is_shaking) ||
+      rawEmotion === 'DIZZY' ||
+      (hasGyroPayload && Math.sqrt(inEyeX * inEyeX + inEyeY * inEyeY) > 6.0)
 
     if (Date.now() > manualGyroLockUntil) {
-      telemetry.value.is_shaking = shaking
-      telemetry.value.device_emotion = shaking
-        ? 'DIZZY'
-        : (rawEmotion === 'PREDICTIVE_WARNING' ? 'WARNING_PREDICTIVE' : parseRiskEmotion(rawEmotion))
+      if (hasExplicitEmotionOrShake || hasGyroPayload) {
+        telemetry.value.is_shaking = shaking
+        telemetry.value.device_emotion = shaking
+          ? 'DIZZY'
+          : (rawEmotion === 'PREDICTIVE_WARNING' ? 'WARNING_PREDICTIVE' : parseRiskEmotion(rawEmotion))
+      } else if (!telemetry.value.is_shaking) {
+        telemetry.value.device_emotion =
+          rawEmotion === 'PREDICTIVE_WARNING' ? 'WARNING_PREDICTIVE' : parseRiskEmotion(rawEmotion)
+      }
     }
 
-    if (data.view_mode === 'FACE' || data.view_mode === 'HUD') {
-      telemetry.value.view_mode = data.view_mode
-    } else if (data.view_mode === 'VIEW_PET_FACE') {
+    const rawViewMode = sample.view_mode ?? s?.view_mode
+    if (rawViewMode === 'FACE' || rawViewMode === 'HUD') {
+      telemetry.value.view_mode = rawViewMode
+    } else if (rawViewMode === 'VIEW_PET_FACE') {
       telemetry.value.view_mode = 'FACE'
-    } else if (data.view_mode === 'VIEW_CIRCULAR_HUD') {
+    } else if (rawViewMode === 'VIEW_CIRCULAR_HUD') {
       telemetry.value.view_mode = 'HUD'
     }
 
     const newPoint: HistoryPoint = {
-      timestamp: data.timestamp || Date.now(),
-      ppm: Number(data.ppm || telemetry.value.ppm),
-      predicted_ppm_15m: Number(data.predicted_ppm_15m || telemetry.value.predicted_ppm_15m)
+      timestamp: sample.timestamp || Date.now(),
+      ppm: Number(telemetry.value.ppm),
+      predicted_ppm_15m: Number(telemetry.value.predicted_ppm_15m)
     }
 
     const last = history.value[history.value.length - 1]
     if (!last || last.timestamp !== newPoint.timestamp) {
       history.value = [...history.value.slice(-49), newPoint]
+    }
+  }
+
+  function applyLiveTelemetry(data: RawTelemetryPayload, markHardwareOnline = true) {
+    applyBackendSample(data, markHardwareOnline)
+  }
+
+  function forwardUsbTelemetryToBackend() {
+    const t = telemetry.value
+    const payload = {
+      device_id: t.device_id || 'air-guardian-01',
+      timestamp: Math.floor(Date.now()),
+      ppm: Math.max(0, Math.min(10000, Number(t.ppm) || 400)),
+      co_ppm: Math.max(0, Math.min(2000, Number(t.co_ppm) || 0)),
+      temperature: Math.max(-40, Math.min(85, Number(t.temperature) || 24)),
+      humidity: Math.max(0, Math.min(100, Number(t.humidity) || 50)),
+      delta_ppm: Number(t.delta_ppm_1m) || 0,
+      raw_adc: Math.max(0, Math.min(4095, Math.round(Number(t.raw_adc) || 0))),
+      raw_adc7: Math.round(Number(t.raw_adc7 ?? t.mq7_raw) || 0),
+      mpu_connected: Boolean(t.mpu_connected),
+      eye_x: Number(t.eye_x) || 0,
+      eye_y: Number(t.eye_y) || 0,
+      pitch: Number(t.pitch) || 0,
+      roll: Number(t.roll) || 0,
+      ax: Number(t.ax) || 0,
+      ay: Number(t.ay) || 0,
+      az: Number(t.az ?? 9.8),
+      is_shaking: Boolean(t.is_shaking),
+      emotion: t.device_emotion || 'OPTIMAL',
+      view_mode: t.view_mode || 'FACE',
+      free_heap: Number(t.free_heap) || 184320,
+      uptime_s: Number(t.uptime_s) || 0,
+      offline_pending: Number(t.offline_pending) || 0
+    }
+
+    fetch(`${apiBase}/api/telemetry/ingest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(() => {})
+  }
+
+  function ingestUsbSerialStatus(statusPayload: any) {
+    if (!statusPayload || typeof statusPayload !== 'object') return
+
+    usbConnected.value = true
+    if (operationMode.value !== 'LIVE') {
+      operationMode.value = 'LIVE'
+      isSimulatorRunning.value = false
+      stopLocalMock()
+    }
+
+    const now = Date.now()
+    lastPacketSource.value = 'HARDWARE'
+    lastPacketTime.value = now
+    nowTick.value = now
+
+    applyBackendSample(
+      {
+        ...statusPayload,
+        timestamp: now,
+        source: 'hardware'
+      },
+      true
+    )
+
+    if (now - lastUsbIngestSentAt >= 1500) {
+      lastUsbIngestSentAt = now
+      if (usbIngestDebounceTimer) {
+        clearTimeout(usbIngestDebounceTimer)
+        usbIngestDebounceTimer = null
+      }
+      forwardUsbTelemetryToBackend()
+    } else if (!usbIngestDebounceTimer) {
+      const delayMs = Math.max(100, 1500 - (now - lastUsbIngestSentAt))
+      usbIngestDebounceTimer = setTimeout(() => {
+        usbIngestDebounceTimer = null
+        lastUsbIngestSentAt = Date.now()
+        forwardUsbTelemetryToBackend()
+      }, delayMs)
     }
   }
 
@@ -436,32 +669,27 @@ export function useAirGuardian() {
     }
   }
 
+  function disableBackendSimulator() {
+    fetch(`${apiBase}/api/simulate/toggle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enable: false })
+    }).catch(() => {})
+  }
+
   async function setOperationMode(mode: 'LOCAL' | 'LIVE') {
     operationMode.value = mode
+    disableBackendSimulator()
     if (mode === 'LOCAL') {
       isSimulatorRunning.value = true
+      runLocalMockStep()
       startLocalMock()
-      try {
-        await fetch(`${apiBase}/api/simulate/toggle`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ enable: true })
-        })
-      } catch {
-        // Fallback local mock active
-      }
     } else {
       isSimulatorRunning.value = false
       stopLocalMock()
-      try {
-        await fetch(`${apiBase}/api/simulate/toggle`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ enable: false })
-        })
-      } catch {
-        // Backend offline
-      }
+      lastPacketTime.value = null
+      lastPacketSource.value = 'NONE'
+      lastSeenServerTimestamp = null
       fetchLiveTelemetry()
       if (!wsConnected.value) {
         connectWebSocket()
@@ -491,15 +719,39 @@ export function useAirGuardian() {
         try {
           const msg = JSON.parse(event.data) as {
             type?: string
+            event?: string
             payload?: RawTelemetryPayload | RawTelemetryPayload[]
+            data?: RawTelemetryPayload | RawTelemetryPayload[]
+            raw?: RawTelemetryPayload
+            processed?: RawTelemetryPayload
+            prediction?: RawTelemetryPayload
           }
-          if ((msg.type === 'TELEMETRY_UPDATE' || msg.type === 'TELEMETRY_BATCH') && msg.payload) {
-            const payload = Array.isArray(msg.payload) ? msg.payload[msg.payload.length - 1] : msg.payload
-            if (!payload) return
-            if (operationMode.value === 'LIVE' && payload.source === 'simulator') {
+          const msgType = String(msg.type || msg.event || '').toUpperCase()
+          const rawContainer = msg.payload ?? msg.data ?? (msg.raw || msg.processed ? msg : null)
+          if ((msgType === 'TELEMETRY_UPDATE' || msgType === 'TELEMETRY_BATCH') && rawContainer) {
+            if (usbConnected.value) return
+            const item = Array.isArray(rawContainer) ? rawContainer[rawContainer.length - 1] : rawContainer
+            if (!item) return
+
+            const combinedSample = mergeTelemetryLayers(
+              item as any,
+              (item as any).raw,
+              (item as any).processed,
+              (item as any).prediction
+            )
+            if (operationMode.value === 'LIVE' && combinedSample.source === 'simulator') {
               return
             }
-            applyLiveTelemetry(payload)
+
+            const rawTs = Number(combinedSample.timestamp || 0)
+            if (rawTs > 946684800000 && (lastSeenServerTimestamp === null || rawTs > lastSeenServerTimestamp)) {
+              lastSeenServerTimestamp = rawTs
+            }
+
+            lastPacketTime.value = Date.now()
+            lastPacketSource.value = 'HARDWARE'
+            nowTick.value = Date.now()
+            applyBackendSample(combinedSample, true)
           }
         } catch (err) {
           console.error('Error parsing WS message', err)
@@ -525,16 +777,39 @@ export function useAirGuardian() {
   }
 
   async function fetchLiveTelemetry() {
+    if (usbConnected.value) return
     try {
       const res = await fetch(`${apiBase}/api/telemetry/live`)
       if (res.ok) {
         const json = (await res.json()) as { success?: boolean; data?: RawTelemetryPayload }
         if (json.success && json.data) {
-          const rawTs = Number(json.data.timestamp)
-          const ts = rawTs < 946684800000 ? Date.now() : rawTs
-          const age = Date.now() - ts
-          if (age < 15000 || rawTs < 946684800000) {
-            applyLiveTelemetry({ ...json.data, timestamp: ts })
+          const sample = mergeTelemetryLayers(
+            json.data as any,
+            json.data.raw as any,
+            json.data.processed as any,
+            json.data.prediction as any
+          )
+          if (operationMode.value === 'LIVE' && sample.source === 'simulator') {
+            return
+          }
+
+          const rawTs = Number(sample.timestamp || 0)
+          const ts = rawTs > 946684800000 ? rawTs : 0
+          const age = ts > 0 ? Math.max(0, Date.now() - ts) : Infinity
+          const isFirstSeen = lastSeenServerTimestamp === null
+          const isFreshPacket = ts > 0 && (age < 8000 || (!isFirstSeen && ts !== lastSeenServerTimestamp))
+
+          if (ts > 0 && (lastSeenServerTimestamp === null || ts > lastSeenServerTimestamp)) {
+            lastSeenServerTimestamp = ts
+          }
+
+          if (isFreshPacket) {
+            lastPacketTime.value = Date.now()
+            lastPacketSource.value = 'HARDWARE'
+            nowTick.value = Date.now()
+            applyBackendSample({ ...sample, timestamp: ts }, true)
+          } else if (isFirstSeen) {
+            applyBackendSample({ ...sample, timestamp: ts || Date.now() }, false)
           }
         }
       }
@@ -738,26 +1013,36 @@ export function useAirGuardian() {
   }
 
   onMounted(() => {
+    activeConsumers++
+    if (activeConsumers > 1) return
+
+    disableBackendSimulator()
     connectWebSocket()
     fetchLiveTelemetry()
     fetchHistory()
     fetchSessions()
     if (operationMode.value === 'LOCAL') {
+      runLocalMockStep()
       startLocalMock()
     }
 
+    if (tickTimer) clearInterval(tickTimer)
     tickTimer = setInterval(() => {
       nowTick.value = Date.now()
     }, 1000)
 
+    if (fallbackPollingTimer) clearInterval(fallbackPollingTimer)
     fallbackPollingTimer = setInterval(() => {
-      if (!wsConnected.value && operationMode.value === 'LIVE') {
+      if (operationMode.value === 'LIVE') {
         fetchLiveTelemetry()
       }
-    }, 3500)
+    }, 2000)
   })
 
   onUnmounted(() => {
+    activeConsumers = Math.max(0, activeConsumers - 1)
+    if (activeConsumers > 0) return
+
     if (socket) {
       socket.close()
       socket = null
@@ -767,6 +1052,7 @@ export function useAirGuardian() {
     if (fallbackPollingTimer) clearInterval(fallbackPollingTimer)
     if (tickTimer) clearInterval(tickTimer)
     if (shakeTimer) clearInterval(shakeTimer)
+    if (usbIngestDebounceTimer) clearTimeout(usbIngestDebounceTimer)
   })
 
   return {
@@ -775,6 +1061,7 @@ export function useAirGuardian() {
     sessions,
     selectedSessionId,
     wsConnected,
+    usbConnected,
     operationMode,
     isSimulatorRunning,
     hardwareStatus,
@@ -782,6 +1069,9 @@ export function useAirGuardian() {
     lastPacketAgeSec,
     isModalOpen,
     viewMode,
+    ingestUsbSerialStatus,
+    applyBackendSample,
+    applyLiveTelemetry,
     setOperationMode,
     toggleViewMode,
     setManualGyro,

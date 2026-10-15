@@ -10,6 +10,7 @@ const props = defineProps<{
   roll?: number
   isShaking?: boolean
   deviceEmotion?: string
+  isHardwareOnline?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -17,7 +18,8 @@ const emit = defineEmits<{
   (e: 'shake'): void
 }>()
 
-const isConnected = computed(() => props.mpuConnected ?? true)
+const isOnline = computed(() => props.isHardwareOnline ?? true)
+const isConnected = computed(() => isOnline.value && (props.mpuConnected ?? true))
 const xVal = computed(() => Number(props.eyeX ?? 0))
 const yVal = computed(() => Number(props.eyeY ?? 0))
 
@@ -83,7 +85,7 @@ function onPointerUp() {
         :class="isConnected ? 'bg-cyan-950/60 border-cyan-500/40 text-cyan-300' : 'bg-rose-950/60 border-rose-500/50 text-rose-400'"
       >
         <component :is="isConnected ? CheckCircle2 : XCircle" class="w-2.5 h-2.5" />
-        <span>{{ isConnected ? 'I2C ACTIVO' : 'SIN SEÑAL' }}</span>
+        <span>{{ !isOnline ? 'ESP32 OFF • SIN I2C' : (isConnected ? 'I2C ACTIVO' : 'SIN SEÑAL') }}</span>
       </div>
     </div>
 

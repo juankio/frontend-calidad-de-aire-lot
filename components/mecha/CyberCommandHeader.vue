@@ -5,6 +5,9 @@ import { Cpu, Radio, Zap, GraduationCap, Usb, Activity, MapPin, Clock, Box, Data
 const props = defineProps<{
   operationMode: 'LOCAL' | 'LIVE'
   hardwareStatus: 'ONLINE' | 'OFFLINE' | 'SIMULATED'
+  wsConnected?: boolean
+  usbConnected?: boolean
+  lastPacketAgeSec?: number | null
 }>()
 
 const emit = defineEmits<{
@@ -32,10 +35,23 @@ const statusBadge = computed(() => {
   if (props.operationMode === 'LOCAL') {
     return { label: 'MODO LOCAL • DATOS SINTÉTICOS', dot: 'bg-amber-400 shadow-[0_0_10px_#f59e0b] animate-pulse', border: 'border-amber-500/40 text-amber-300 bg-amber-950/40', short: 'LOCAL' }
   }
-  if (props.hardwareStatus === 'ONLINE') {
-    return { label: 'ESP32 EN LÍNEA • TELEMETRÍA OK', dot: 'bg-cyan-400 shadow-[0_0_10px_#06b6d4] animate-pulse', border: 'border-cyan-500/40 text-cyan-300 bg-cyan-950/40', short: 'ESP32 ON' }
+  if (props.usbConnected) {
+    return {
+      label: props.wsConnected ? 'USB ESP32 + WIFI EN LÍNEA' : 'USB ESP32 DIRECTO • TELEMETRÍA OK',
+      dot: 'bg-cyan-400 shadow-[0_0_10px_#06b6d4] animate-pulse',
+      border: 'border-cyan-500/50 text-cyan-200 bg-cyan-950/50',
+      short: 'USB ON'
+    }
   }
-  return { label: 'ESP32 DESCONECTADO • SIN SEÑAL', dot: 'bg-rose-500 shadow-[0_0_10px_#ef4444]', border: 'border-rose-500/40 text-rose-400 bg-rose-950/40', short: 'ESP32 OFF' }
+  if (props.hardwareStatus === 'ONLINE') {
+    return { label: 'WIFI ESP32 EN LÍNEA • TELEMETRÍA EN VIVO', dot: 'bg-emerald-400 shadow-[0_0_10px_#10b981] animate-pulse', border: 'border-emerald-500/40 text-emerald-300 bg-emerald-950/40', short: 'ESP32 ON' }
+  }
+  return {
+    label: 'SERVIDOR OK • ESP32 APAGADO / SIN WIFI',
+    dot: 'bg-rose-500 shadow-[0_0_10px_#ef4444]',
+    border: 'border-rose-500/40 text-rose-400 bg-rose-950/40',
+    short: 'ESP32 OFF'
+  }
 })
 </script>
 
@@ -113,7 +129,7 @@ const statusBadge = computed(() => {
         </div>
 
         <!-- Badge Desktop -->
-        <div class="hidden xl:flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[9px] border transition-all duration-300" :class="statusBadge.border">
+        <div class="hidden lg:flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[9px] border transition-all duration-300" :class="statusBadge.border">
           <span class="w-1.5 h-1.5 rounded-full" :class="statusBadge.dot" />
           <span class="font-bold tracking-wide">{{ statusBadge.label }}</span>
         </div>

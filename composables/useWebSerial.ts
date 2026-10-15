@@ -7,21 +7,24 @@ export interface SerialLogItem {
   type: 'rx' | 'tx' | 'sys'
 }
 
+const isConnected = ref(false)
+const isConnecting = ref(false)
+const port = shallowRef<any>(null)
+const logs = ref<SerialLogItem[]>([])
+
+let logSeq = 0
+let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
+let keepReading = false
+let rxBuffer = ''
+let onSerialDisconnect: ((event: any) => void) | null = null
+let lastStatusLogMs = 0
+const keepBackgroundAlive = true
+const lineListeners = new Set<(line: string) => void>()
+
 export function useWebSerial() {
   const isSupported = computed(() => {
     return typeof window !== 'undefined' && typeof navigator !== 'undefined' && 'serial' in navigator
   })
-
-  const isConnected = ref(false)
-  const isConnecting = ref(false)
-  const port = shallowRef<any>(null)
-  const logs = ref<SerialLogItem[]>([])
-
-  let logSeq = 0
-  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
-  let keepReading = false
-  let rxBuffer = ''
-  let onSerialDisconnect: ((event: any) => void) | null = null
 
   function getTimestamp(): string {
     const now = new Date()
@@ -35,6 +38,33 @@ export function useWebSerial() {
 
   function clearLogs() {
     logs.value = []
+  }
+
+  function onSerialLine(listener: (line: string) => void): () => void {
+    lineListeners.add(listener)
+    return () => {
+      lineListeners.delete(listener)
+    }
+  }
+
+  function emitSerialLine(rawLine: string) {
+    const trimmed = rawLine.trim()
+    if (!trimmed) return
+    for (const listener of lineListeners) {
+      try {
+        listener(trimmed)
+      } catch {}
+    }
+    const isStatusPollPacket = trimmed.startsWith('{') && trimmed.includes('"cmd":"STATUS"')
+    if (isStatusPollPacket) {
+      const now = Date.now()
+      if (now - lastStatusLogMs >= 4000) {
+        lastStatusLogMs = now
+        addLog(trimmed, 'rx')
+      }
+    } else {
+      addLog(trimmed, 'rx')
+    }
   }
 
   async function cleanupResources(logMessage: string) {
@@ -131,7 +161,7 @@ export function useWebSerial() {
             rxBuffer += decoder.decode(value, { stream: true })
             const lines = rxBuffer.split(/\r?\n/)
             for (let i = 0; i < lines.length - 1; i++) {
-              if (lines[i].trim().length > 0) addLog(lines[i], 'rx')
+              if (lines[i].trim().length > 0) emitSerialLine(lines[i])
             }
             rxBuffer = lines[lines.length - 1]
           }
@@ -148,7 +178,7 @@ export function useWebSerial() {
     }
 
     if (rxBuffer.trim().length > 0) {
-      addLog(rxBuffer.trim(), 'rx')
+      emitSerialLine(rxBuffer.trim())
       rxBuffer = ''
     }
 
@@ -157,25 +187,25 @@ export function useWebSerial() {
     }
   }
 
-  async function sendLine(line: string): Promise<boolean> {
+  async function sendLine(line: string, silent = false): Promise<boolean> {
     if (!isConnected.value || !port.value || !port.value.writable) {
-      addLog('No hay canal USB activo para transmitir.', 'sys')
+      if (!silent) addLog('No hay canal USB activo para transmitir.', 'sys')
       return false
     }
 
     let writer: any = null
     try {
       if (port.value.writable.locked) {
-        addLog('Canal de transmisión USB ocupado.', 'sys')
+        if (!silent) addLog('Canal de transmisión USB ocupado.', 'sys')
         return false
       }
       writer = port.value.writable.getWriter()
       const dataToSend = line.endsWith('\n') ? line : line + '\n'
       await writer.write(new TextEncoder().encode(dataToSend))
-      addLog(line.trim(), 'tx')
+      if (!silent) addLog(line.trim(), 'tx')
       return true
     } catch (err: any) {
-      addLog(`Fallo de transmisión: ${err?.message || err}`, 'sys')
+      if (!silent) addLog(`Fallo de transmisión: ${err?.message || err}`, 'sys')
       const msg = String(err?.message || err)
       if (msg.includes('device has been lost') || msg.includes('NetworkError') || !port.value?.writable) {
         await handleConnectionLoss()
@@ -193,6 +223,7 @@ export function useWebSerial() {
   }
 
   onScopeDispose(() => {
+    if (keepBackgroundAlive) return
     if (typeof navigator !== 'undefined' && 'serial' in navigator && onSerialDisconnect) {
       try {
         (navigator as any).serial.removeEventListener('disconnect', onSerialDisconnect)
@@ -202,5 +233,5 @@ export function useWebSerial() {
     if (isConnected.value) disconnect()
   })
 
-  return { isSupported, isConnected, isConnecting, logs, connect, disconnect, sendLine, clearLogs }
+  return { isSupported, isConnected, isConnecting, logs, connect, disconnect, sendLine, clearLogs, onSerialLine }
 }

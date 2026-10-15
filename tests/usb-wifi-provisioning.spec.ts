@@ -106,7 +106,7 @@ test("UsbWifiModal - Aprovisionamiento Wi-Fi por USB Playwright Sniper Suite", a
 
     const serverLabel = page.locator("label:has-text('Servidor Backend')");
     expect(await serverLabel.isVisible()).toBe(true);
-    const serverInput = page.locator("input[placeholder='192.168.1.19'], input[placeholder='192.168.1.100']");
+    const serverInput = page.locator("input[placeholder='https://servidor-taller.tailf19567.ts.net:10000'], input[placeholder='192.168.1.19'], input[placeholder='192.168.1.100']");
     expect(await serverInput.isVisible()).toBe(true);
 
     // 6. Comprobar terminal CRT de fósforo ámbar (AmberTerminal)

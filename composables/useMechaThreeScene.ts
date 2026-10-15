@@ -59,6 +59,7 @@ export function useMechaThreeScene() {
   let electronicsGroup: THREE.Group | null = null
   let esp32Group: THREE.Group | null = null
   let gc9a01PcbGroup: THREE.Group | null = null
+  let internalPcbList: THREE.Object3D[] = []
 
   let frontMesh: THREE.Mesh | null = null
   let backMesh: THREE.Mesh | null = null
@@ -245,23 +246,24 @@ export function useMechaThreeScene() {
       metalness: 0.85,
       roughness: 0.28
     })
-    const cupolaGeo = new THREE.CylinderGeometry(9.6, 9.6, 11.5, 32)
+    const cupolaGeo = new THREE.CylinderGeometry(9.2, 9.2, 8.6, 32)
     cupolaGeo.rotateX(Math.PI / 2)
     const cupolaMesh = new THREE.Mesh(cupolaGeo, steelMat)
-    cupolaMesh.position.set(0, 0, 2.5)
+    cupolaMesh.position.set(0, 0, 4.8)
     group.add(cupolaMesh)
 
-    const capRingGeo = new THREE.TorusGeometry(8.2, 0.85, 16, 32)
+    const capRingGeo = new THREE.RingGeometry(6.8, 9.2, 32)
     const capRingMat = new THREE.MeshStandardMaterial({
       color: 0xf8fafc,
       metalness: 0.92,
-      roughness: 0.18
+      roughness: 0.18,
+      side: THREE.DoubleSide
     })
     const capRing = new THREE.Mesh(capRingGeo, capRingMat)
-    capRing.position.set(0, 0, -3.2)
+    capRing.position.set(0, 0, 0.45)
     group.add(capRing)
 
-    const bakeliteGeo = new THREE.CylinderGeometry(10.2, 10.2, 3.0, 32)
+    const bakeliteGeo = new THREE.CylinderGeometry(9.5, 9.5, 2.4, 32)
     bakeliteGeo.rotateX(Math.PI / 2)
     const bakeliteMat = new THREE.MeshStandardMaterial({
       color: 0x0f172a,
@@ -269,28 +271,30 @@ export function useMechaThreeScene() {
       roughness: 0.7
     })
     const bakeliteMesh = new THREE.Mesh(bakeliteGeo, bakeliteMat)
-    bakeliteMesh.position.set(0, 0, 8.5)
+    bakeliteMesh.position.set(0, 0, 9.5)
     group.add(bakeliteMesh)
 
-    const pcbGeo = new THREE.BoxGeometry(32.5, 20.5, 1.6)
+    const mqPcbBackGroup = new THREE.Group()
+
+    const pcbGeo = new THREE.BoxGeometry(17.5, 26.0, 1.5)
     const pcbMat = new THREE.MeshStandardMaterial({
       color: 0x1d4ed8,
       metalness: 0.25,
       roughness: 0.45
     })
     const pcbMesh = new THREE.Mesh(pcbGeo, pcbMat)
-    pcbMesh.position.set(0, 0, 10.8)
-    group.add(pcbMesh)
+    pcbMesh.position.set(0, -1.5, 11.2)
+    mqPcbBackGroup.add(pcbMesh)
 
-    const potGeo = new THREE.BoxGeometry(6.8, 6.8, 3.8)
+    const potGeo = new THREE.BoxGeometry(5.2, 5.2, 3.0)
     const potMat = new THREE.MeshStandardMaterial({
       color: 0x0284c7,
       roughness: 0.4,
       metalness: 0.1
     })
     const potMesh = new THREE.Mesh(potGeo, potMat)
-    potMesh.position.set(8.5, 4.2, 13.2)
-    group.add(potMesh)
+    potMesh.position.set(4.2, -7.5, 13.0)
+    mqPcbBackGroup.add(potMesh)
 
     const screwGeo = new THREE.CylinderGeometry(1.4, 1.4, 0.8, 16)
     screwGeo.rotateX(Math.PI / 2)
@@ -300,43 +304,47 @@ export function useMechaThreeScene() {
       roughness: 0.2
     })
     const potScrew = new THREE.Mesh(screwGeo, brassMat)
-    potScrew.position.set(8.5, 4.2, 15.2)
-    group.add(potScrew)
+    potScrew.position.set(4.2, -7.5, 14.6)
+    mqPcbBackGroup.add(potScrew)
 
-    const icGeo = new THREE.BoxGeometry(5.0, 4.0, 1.4)
+    const icGeo = new THREE.BoxGeometry(4.2, 3.6, 1.2)
     const icMat = new THREE.MeshStandardMaterial({
       color: 0x111827,
       roughness: 0.5,
       metalness: 0.2
     })
     const icMesh = new THREE.Mesh(icGeo, icMat)
-    icMesh.position.set(-7.5, -3.5, 12.2)
-    group.add(icMesh)
+    icMesh.position.set(-4.0, -6.5, 12.4)
+    mqPcbBackGroup.add(icMesh)
 
-    const greenLedGeo = new THREE.BoxGeometry(1.8, 1.2, 0.9)
+    const greenLedGeo = new THREE.BoxGeometry(1.6, 1.1, 0.8)
     const greenLedMat = new THREE.MeshBasicMaterial({ color: 0x22c55e })
     const greenLed = new THREE.Mesh(greenLedGeo, greenLedMat)
-    greenLed.position.set(-11.5, 5.5, 12.0)
-    group.add(greenLed)
+    greenLed.position.set(-5.5, -10.5, 12.2)
+    mqPcbBackGroup.add(greenLed)
 
     const redLedMat = new THREE.MeshBasicMaterial({ color: 0xef4444 })
     const redLed = new THREE.Mesh(greenLedGeo, redLedMat)
-    redLed.position.set(-11.5, 2.2, 12.0)
-    group.add(redLed)
+    redLed.position.set(-2.0, -10.5, 12.2)
+    mqPcbBackGroup.add(redLed)
 
-    const pinGeo = new THREE.CylinderGeometry(0.45, 0.45, 6.5, 12)
+    const pinGeo = new THREE.CylinderGeometry(0.4, 0.4, 4.5, 12)
     pinGeo.rotateX(Math.PI / 2)
     for (let p = 0; p < 4; p++) {
       const pin = new THREE.Mesh(pinGeo, brassMat)
-      pin.position.set(13.5, -3.8 + p * 2.54, 14.5)
-      group.add(pin)
+      pin.position.set(-3.81 + p * 2.54, -11.5, 14.0)
+      mqPcbBackGroup.add(pin)
     }
+
+    group.add(mqPcbBackGroup)
+    internalPcbList.push(mqPcbBackGroup)
 
     return group
   }
 
   function buildElectronicsGroup(): THREE.Group {
     const group = new THREE.Group()
+    internalPcbList = []
     meshGrillTexture = createStainlessMeshTexture()
     dhtGrillTexture = createDht11GrillTexture()
 
@@ -359,16 +367,6 @@ export function useMechaThreeScene() {
     gc9a01PcbGroup = new THREE.Group()
     gc9a01PcbGroup.position.set(0, 12, 2.8)
 
-    const displayPcbGeo = new THREE.CylinderGeometry(18, 18, 1.5, 48)
-    displayPcbGeo.rotateX(Math.PI / 2)
-    const displayPcbMat = new THREE.MeshStandardMaterial({
-      color: 0x1e3a8a,
-      metalness: 0.3,
-      roughness: 0.45
-    })
-    const displayPcb = new THREE.Mesh(displayPcbGeo, displayPcbMat)
-    gc9a01PcbGroup.add(displayPcb)
-
     const bezelRingGeo = new THREE.RingGeometry(16.4, 17.8, 64)
     const bezelRingMat = new THREE.MeshStandardMaterial({
       color: 0x0f172a,
@@ -380,27 +378,42 @@ export function useMechaThreeScene() {
     bezelRing.position.set(0, 0, -2.9)
     gc9a01PcbGroup.add(bezelRing)
 
-    const headerPlasticGeo = new THREE.BoxGeometry(20.4, 2.5, 2.4)
-    const headerPlastic = new THREE.Mesh(headerPlasticGeo, darkIcMat)
-    headerPlastic.position.set(0, -15, 1.8)
-    gc9a01PcbGroup.add(headerPlastic)
+    const gc9a01BackParts = new THREE.Group()
 
-    const spiPinGeo = new THREE.CylinderGeometry(0.4, 0.4, 6.0, 10)
+    const displayPcbGeo = new THREE.CylinderGeometry(17.5, 17.5, 1.5, 48)
+    displayPcbGeo.rotateX(Math.PI / 2)
+    const displayPcbMat = new THREE.MeshStandardMaterial({
+      color: 0x1e3a8a,
+      metalness: 0.3,
+      roughness: 0.45
+    })
+    const displayPcb = new THREE.Mesh(displayPcbGeo, displayPcbMat)
+    gc9a01BackParts.add(displayPcb)
+
+    const headerPlasticGeo = new THREE.BoxGeometry(19.0, 2.4, 2.2)
+    const headerPlastic = new THREE.Mesh(headerPlasticGeo, darkIcMat)
+    headerPlastic.position.set(0, -13.5, 1.6)
+    gc9a01BackParts.add(headerPlastic)
+
+    const spiPinGeo = new THREE.CylinderGeometry(0.38, 0.38, 4.5, 10)
     spiPinGeo.rotateX(Math.PI / 2)
     for (let i = 0; i < 8; i++) {
       const pin = new THREE.Mesh(spiPinGeo, goldPinMat)
-      pin.position.set(-8.89 + i * 2.54, -15, 3.8)
-      gc9a01PcbGroup.add(pin)
+      pin.position.set(-8.89 + i * 2.54, -13.5, 3.4)
+      gc9a01BackParts.add(pin)
     }
+
+    gc9a01PcbGroup.add(gc9a01BackParts)
+    internalPcbList.push(gc9a01BackParts)
     group.add(gc9a01PcbGroup)
 
     group.add(buildMqSensorModule(true))
     group.add(buildMqSensorModule(false))
 
     const dhtGroup = new THREE.Group()
-    dhtGroup.position.set(0, -25, 4.5)
+    dhtGroup.position.set(0, -23.5, 5.5)
 
-    const dhtBodyGeo = new THREE.BoxGeometry(12.6, 16.0, 5.8)
+    const dhtBodyGeo = new THREE.BoxGeometry(12.2, 15.2, 5.2)
     const dhtBodyMat = new THREE.MeshStandardMaterial({
       color: 0x0ea5e9,
       map: dhtGrillTexture,
@@ -408,30 +421,37 @@ export function useMechaThreeScene() {
       metalness: 0.1
     })
     const dhtBody = new THREE.Mesh(dhtBodyGeo, dhtBodyMat)
+    dhtBody.position.set(0, 0, 0)
     dhtGroup.add(dhtBody)
 
-    const dhtPcbGeo = new THREE.BoxGeometry(16.0, 27.5, 1.6)
+    const dhtBackParts = new THREE.Group()
+
+    const dhtPcbGeo = new THREE.BoxGeometry(14.0, 19.0, 1.4)
     const dhtPcbMat = new THREE.MeshStandardMaterial({
       color: 0x0f172a,
       roughness: 0.48,
       metalness: 0.25
     })
     const dhtPcb = new THREE.Mesh(dhtPcbGeo, dhtPcbMat)
-    dhtPcb.position.set(0, -2.5, 3.7)
-    dhtGroup.add(dhtPcb)
+    dhtPcb.position.set(0, -1.0, 3.4)
+    dhtBackParts.add(dhtPcb)
 
-    const dhtPinGeo = new THREE.CylinderGeometry(0.4, 0.4, 5.5, 10)
+    const dhtPinGeo = new THREE.CylinderGeometry(0.38, 0.38, 4.0, 10)
+    dhtPinGeo.rotateX(Math.PI / 2)
     for (let i = -1; i <= 1; i++) {
       const pin = new THREE.Mesh(dhtPinGeo, stainlessMat)
-      pin.position.set(i * 2.54, -16.5, 3.7)
-      dhtGroup.add(pin)
+      pin.position.set(i * 2.54, -9.5, 4.8)
+      dhtBackParts.add(pin)
     }
+
+    dhtGroup.add(dhtBackParts)
+    internalPcbList.push(dhtBackParts)
     group.add(dhtGroup)
 
     const mpuGroup = new THREE.Group()
-    mpuGroup.position.set(16, -34, 6.0)
+    mpuGroup.position.set(15.0, -24.0, 11.5)
 
-    const mpuPcbGeo = new THREE.BoxGeometry(20.5, 15.6, 1.6)
+    const mpuPcbGeo = new THREE.BoxGeometry(18.0, 14.0, 1.5)
     const mpuPcbMat = new THREE.MeshStandardMaterial({
       color: 0x2563eb,
       roughness: 0.42,
@@ -440,18 +460,18 @@ export function useMechaThreeScene() {
     const mpuPcb = new THREE.Mesh(mpuPcbGeo, mpuPcbMat)
     mpuGroup.add(mpuPcb)
 
-    const memsChipGeo = new THREE.BoxGeometry(4.2, 4.2, 1.0)
+    const memsChipGeo = new THREE.BoxGeometry(4.0, 4.0, 1.0)
     const memsChip = new THREE.Mesh(memsChipGeo, darkIcMat)
-    memsChip.position.set(0, 0.5, -1.1)
+    memsChip.position.set(0, 0.5, -1.0)
     mpuGroup.add(memsChip)
 
-    const mpuLedGeo = new THREE.BoxGeometry(1.6, 1.0, 0.8)
+    const mpuLedGeo = new THREE.BoxGeometry(1.5, 1.0, 0.7)
     const mpuLedMat = new THREE.MeshBasicMaterial({ color: 0x4ade80 })
     const mpuLed = new THREE.Mesh(mpuLedGeo, mpuLedMat)
-    mpuLed.position.set(-6.5, 4.2, -1.0)
+    mpuLed.position.set(-5.5, 3.8, -1.0)
     mpuGroup.add(mpuLed)
 
-    const smdCapGeo = new THREE.BoxGeometry(1.6, 0.9, 0.7)
+    const smdCapGeo = new THREE.BoxGeometry(1.5, 0.85, 0.65)
     const smdCapMat = new THREE.MeshStandardMaterial({
       color: 0xd97706,
       metalness: 0.3,
@@ -459,23 +479,24 @@ export function useMechaThreeScene() {
     })
     for (let c = 0; c < 3; c++) {
       const cap = new THREE.Mesh(smdCapGeo, smdCapMat)
-      cap.position.set(5.2, -2.5 + c * 2.6, -1.0)
+      cap.position.set(4.5, -2.2 + c * 2.2, -1.0)
       mpuGroup.add(cap)
     }
 
-    const mpuPinGeo = new THREE.CylinderGeometry(0.38, 0.38, 5.2, 10)
+    const mpuPinGeo = new THREE.CylinderGeometry(0.36, 0.36, 4.0, 10)
     mpuPinGeo.rotateX(Math.PI / 2)
     for (let i = 0; i < 8; i++) {
       const pin = new THREE.Mesh(mpuPinGeo, goldPinMat)
-      pin.position.set(-8.89 + i * 2.54, -6.2, 2.2)
+      pin.position.set(-7.62 + i * 2.18, -5.2, 2.0)
       mpuGroup.add(pin)
     }
+    internalPcbList.push(mpuGroup)
     group.add(mpuGroup)
 
     esp32Group = new THREE.Group()
-    esp32Group.position.set(0, -10, 30)
+    esp32Group.position.set(0, -6.0, 31.0)
 
-    const espPcbGeo = new THREE.BoxGeometry(28.5, 51.5, 1.6)
+    const espPcbGeo = new THREE.BoxGeometry(26.5, 46.0, 1.5)
     const espPcbMat = new THREE.MeshStandardMaterial({
       color: 0x0f172a,
       roughness: 0.52,
@@ -484,80 +505,81 @@ export function useMechaThreeScene() {
     const espPcb = new THREE.Mesh(espPcbGeo, espPcbMat)
     esp32Group.add(espPcb)
 
-    const wroomShieldGeo = new THREE.BoxGeometry(18.0, 19.5, 2.8)
+    const wroomShieldGeo = new THREE.BoxGeometry(16.8, 17.5, 2.6)
     const wroomShieldMat = new THREE.MeshStandardMaterial({
       color: 0xcbd5e1,
       metalness: 0.86,
       roughness: 0.22
     })
     const wroomShield = new THREE.Mesh(wroomShieldGeo, wroomShieldMat)
-    wroomShield.position.set(0, 9.5, -2.0)
+    wroomShield.position.set(0, 8.0, -1.8)
     esp32Group.add(wroomShield)
 
-    const antBaseGeo = new THREE.BoxGeometry(18.0, 6.2, 0.8)
+    const antBaseGeo = new THREE.BoxGeometry(16.8, 5.4, 0.8)
     const antBaseMat = new THREE.MeshStandardMaterial({
       color: 0x090d16,
       roughness: 0.6
     })
     const antBase = new THREE.Mesh(antBaseGeo, antBaseMat)
-    antBase.position.set(0, 22.4, -1.0)
+    antBase.position.set(0, 19.6, -1.0)
     esp32Group.add(antBase)
 
     for (let a = -6; a <= 6; a += 3) {
-      const traceGeo = new THREE.BoxGeometry(1.2, 4.4, 0.9)
+      const traceGeo = new THREE.BoxGeometry(1.1, 3.8, 0.9)
       const trace = new THREE.Mesh(traceGeo, goldPinMat)
-      trace.position.set(a, 22.6, -1.1)
+      trace.position.set(a, 19.8, -1.1)
       esp32Group.add(trace)
     }
 
-    const cp2102Geo = new THREE.BoxGeometry(5.2, 5.2, 1.1)
+    const cp2102Geo = new THREE.BoxGeometry(4.8, 4.8, 1.0)
     const cp2102 = new THREE.Mesh(cp2102Geo, darkIcMat)
-    cp2102.position.set(0, -11.5, -1.2)
+    cp2102.position.set(0, -10.5, -1.1)
     esp32Group.add(cp2102)
 
-    const btnBaseGeo = new THREE.BoxGeometry(3.6, 2.8, 1.4)
-    const btnCapGeo = new THREE.CylinderGeometry(1.0, 1.0, 0.8, 12)
+    const btnBaseGeo = new THREE.BoxGeometry(3.4, 2.6, 1.3)
+    const btnCapGeo = new THREE.CylinderGeometry(0.95, 0.95, 0.75, 12)
     btnCapGeo.rotateX(Math.PI / 2)
 
     const bootBtn = new THREE.Mesh(btnBaseGeo, stainlessMat)
-    bootBtn.position.set(-8.2, -19.5, -1.3)
+    bootBtn.position.set(-7.5, -17.5, -1.2)
     const bootCap = new THREE.Mesh(btnCapGeo, darkIcMat)
-    bootCap.position.set(-8.2, -19.5, -2.1)
+    bootCap.position.set(-7.5, -17.5, -1.9)
 
     const enBtn = new THREE.Mesh(btnBaseGeo, stainlessMat)
-    enBtn.position.set(8.2, -19.5, -1.3)
+    enBtn.position.set(7.5, -17.5, -1.2)
     const enCap = new THREE.Mesh(btnCapGeo, darkIcMat)
-    enCap.position.set(8.2, -19.5, -2.1)
+    enCap.position.set(7.5, -17.5, -1.9)
 
     esp32Group.add(bootBtn, bootCap, enBtn, enCap)
 
-    const pwrLedGeo = new THREE.BoxGeometry(1.6, 1.0, 0.8)
+    const pwrLedGeo = new THREE.BoxGeometry(1.5, 1.0, 0.75)
     const pwrLedMat = new THREE.MeshBasicMaterial({ color: 0xef4444 })
     const pwrLed = new THREE.Mesh(pwrLedGeo, pwrLedMat)
-    pwrLed.position.set(-5.0, -16.0, -1.2)
+    pwrLed.position.set(-4.5, -14.5, -1.1)
     esp32Group.add(pwrLed)
 
     esp32BlueLedMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
     const gpio2Led = new THREE.Mesh(pwrLedGeo, esp32BlueLedMat)
-    gpio2Led.position.set(5.0, -16.0, -1.2)
+    gpio2Led.position.set(4.5, -14.5, -1.1)
     esp32Group.add(gpio2Led)
 
-    const espPinGeo = new THREE.CylinderGeometry(0.38, 0.38, 6.2, 8)
+    const espPinGeo = new THREE.CylinderGeometry(0.36, 0.36, 4.8, 8)
     espPinGeo.rotateX(Math.PI / 2)
     for (let row = 0; row < 15; row++) {
-      const py = -17.78 + row * 2.54
+      const py = -16.5 + row * 2.35
       const leftPin = new THREE.Mesh(espPinGeo, goldPinMat)
-      leftPin.position.set(-12.7, py, 2.2)
+      leftPin.position.set(-11.6, py, 2.0)
       const rightPin = new THREE.Mesh(espPinGeo, goldPinMat)
-      rightPin.position.set(12.7, py, 2.2)
+      rightPin.position.set(11.6, py, 2.0)
       esp32Group.add(leftPin, rightPin)
     }
 
-    const usbPortGeo = new THREE.BoxGeometry(8.2, 6.2, 3.2)
+    const usbPortGeo = new THREE.BoxGeometry(7.6, 5.0, 2.8)
     const usbPort = new THREE.Mesh(usbPortGeo, stainlessMat)
-    usbPort.position.set(0, -25.5, -2.1)
+    usbPort.position.set(0, -22.5, -1.8)
     esp32Group.add(usbPort)
 
+    internalPcbList.push(esp32Group)
     group.add(esp32Group)
 
     const screwShaftGeo = new THREE.CylinderGeometry(1.45, 1.45, 18.0, 18)
@@ -627,9 +649,15 @@ export function useMechaThreeScene() {
   }
 
   function syncFrontShellAppearance() {
-    if (!frontMaterial) return
     const d = Math.max(0, Math.min(currentOptions.clamshellDistance ?? 0, 60))
     const isXray = Boolean(currentOptions.xray)
+    const showInternalPcbs = isXray || d >= 1
+
+    for (const obj of internalPcbList) {
+      obj.visible = showInternalPcbs
+    }
+
+    if (!frontMaterial) return
     const shouldConfigureTransparency = isXray || d > 4
 
     frontMaterial.wireframe = Boolean(currentOptions.wireframe)
@@ -740,7 +768,7 @@ export function useMechaThreeScene() {
     }
 
     if (esp32Group) {
-      esp32Group.position.set(0, -10, 30 + d * 0.6)
+      esp32Group.position.set(0, -6.0, 31.0 + d * 0.65)
     }
 
     syncFrontShellAppearance()
@@ -1130,6 +1158,7 @@ export function useMechaThreeScene() {
     electronicsGroup = null
     esp32Group = null
     gc9a01PcbGroup = null
+    internalPcbList = []
     screenCanvas = null
     screenCtx = null
   }

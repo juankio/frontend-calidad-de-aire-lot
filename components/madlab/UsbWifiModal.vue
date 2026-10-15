@@ -1,19 +1,26 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { ref, reactive, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { Usb, Zap, X, Eye, EyeOff, HelpCircle, Wifi, Server, Check, AlertTriangle, Disc, Info } from 'lucide-vue-next'
 import anime from 'animejs'
 import AmberTerminal from './AmberTerminal.vue'
 import { useWebSerial } from '~/composables/useWebSerial'
+import { useAirGuardian } from '~/composables/useAirGuardian'
+
+const DEFAULT_SERVER_URL = 'https://servidor-taller.tailf19567.ts.net:10000'
 
 const props = defineProps<{ isOpen: boolean }>()
-const emit = defineEmits<{ (e: 'close'): void }>()
+const emit = defineEmits<{ (e: 'close'): void; (e: 'status', payload: any): void }>()
 
-const { isSupported, isConnected, isConnecting, logs, connect, disconnect, sendLine, clearLogs } = useWebSerial()
+const { isSupported, isConnected, isConnecting, logs, connect, disconnect, sendLine, clearLogs, onSerialLine } = useWebSerial()
+const { ingestUsbSerialStatus, usbConnected } = useAirGuardian()
 
-const ssid = ref('')
-const password = ref('')
+const form = reactive({
+  ssid: '',
+  pass: '',
+  server: DEFAULT_SERVER_URL
+})
+const deviceStatus = ref<any>(null)
 const showPassword = ref(false)
-const serverIp = ref(typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && !window.location.hostname.endsWith('.vercel.app') ? window.location.hostname : '192.168.1.19')
 const isSending = ref(false)
 const showHelp = ref(false)
 const statusNote = ref('')
@@ -21,7 +28,59 @@ const backdropRef = ref<HTMLElement | null>(null)
 const modalCardRef = ref<HTMLElement | null>(null)
 const transmitBtnRef = ref<HTMLElement | null>(null)
 
+let statusPollTimer: ReturnType<typeof setInterval> | null = null
+let unsubscribeSerialLine: (() => void) | null = null
+
 const isReducedMotion = () => typeof window !== 'undefined' && (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)
+
+function startStatusPolling() {
+  if (statusPollTimer) clearInterval(statusPollTimer)
+  statusPollTimer = setInterval(() => {
+    if (isConnected.value && !isSending.value) {
+      sendLine(JSON.stringify({ cmd: 'GET_STATUS' }), true)
+    }
+  }, 400)
+}
+
+function stopStatusPolling() {
+  if (statusPollTimer) {
+    clearInterval(statusPollTimer)
+    statusPollTimer = null
+  }
+}
+
+watch(isConnected, (connected) => {
+  usbConnected.value = connected
+  if (connected) {
+    startStatusPolling()
+    sendLine(JSON.stringify({ cmd: 'GET_STATUS' }), true)
+  } else {
+    stopStatusPolling()
+  }
+}, { immediate: true })
+
+onMounted(() => {
+  unsubscribeSerialLine = onSerialLine((line) => {
+    if (!line.startsWith('{')) return
+    try {
+      const parsed = JSON.parse(line)
+      if (parsed && parsed.cmd === 'STATUS') {
+        deviceStatus.value = parsed
+        ingestUsbSerialStatus(parsed)
+        emit('status', parsed)
+      } else if (parsed && parsed.cmd === 'WIFI_ACK' && parsed.status === 'OK') {
+        statusNote.value = parsed.message || 'Credenciales Wi-Fi guardadas en memoria NVS del ESP32.'
+      }
+    } catch {}
+  })
+})
+
+onUnmounted(() => {
+  if (unsubscribeSerialLine) {
+    unsubscribeSerialLine()
+    unsubscribeSerialLine = null
+  }
+})
 
 watch(() => props.isOpen, async (open) => {
   if (open) {
@@ -36,16 +95,24 @@ watch(() => props.isOpen, async (open) => {
   }
 }, { immediate: true })
 
+function handleCloseModal() {
+  emit('close')
+}
+
 async function handleToggleConnect() {
   statusNote.value = ''
   if (isConnected.value) {
+    stopStatusPolling()
+    usbConnected.value = false
     await disconnect()
   } else {
     const ok = await connect(115200)
     if (!ok && isSupported.value) {
       statusNote.value = 'Apertura de puerto USB cancelada o no disponible.'
     } else if (ok) {
-      statusNote.value = 'ESP32 conectado. Es normal si el chip se reinicia al abrir el puerto serie (señal DTR/RTS).'
+      usbConnected.value = true
+      startStatusPolling()
+      statusNote.value = 'ESP32 conectado por USB (400ms Live Stream activo). Seguirá enlazado en segundo plano al cerrar este modal.'
     }
   }
 }
@@ -65,13 +132,18 @@ async function handleTransmit() {
     statusNote.value = 'Conecta el ESP32 por USB antes de transmitir.'
     return
   }
-  if (!ssid.value.trim()) {
+  if (!form.ssid.trim()) {
     statusNote.value = 'El nombre de red (SSID) es requerido.'
     return
   }
   isSending.value = true
   statusNote.value = ''
-  const payload = { cmd: 'SET_WIFI', ssid: ssid.value.trim(), pass: password.value, server: serverIp.value.trim() || '192.168.1.19' }
+  const payload = {
+    cmd: 'SET_WIFI',
+    ssid: form.ssid.trim(),
+    pass: form.pass,
+    server: form.server.trim() || DEFAULT_SERVER_URL
+  }
   const ok = await sendLine(JSON.stringify(payload))
   isSending.value = false
   statusNote.value = ok ? '¡Trama transmitida! Observa la respuesta en el terminal.' : 'Fallo al transmitir por el canal serie.'
@@ -113,7 +185,7 @@ async function handleTransmit() {
           <button type="button" @click="showHelp = !showHelp" class="min-h-[36px] px-2.5 py-1 rounded-lg bg-slate-900 border border-cyan-500/30 text-cyan-300 hover:text-cyan-100 text-[10px] transition flex items-center gap-1 cursor-pointer active:scale-95" title="Instrucciones de conexión">
             <HelpCircle class="w-3.5 h-3.5 text-cyan-400" /><span class="hidden sm:inline">Guía UX</span>
           </button>
-          <button type="button" @click="emit('close')" aria-label="Cerrar modal" title="Cerrar modal" class="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg text-slate-400 hover:text-cyan-200 hover:bg-slate-900 cursor-pointer transition active:scale-90">
+          <button type="button" @click="handleCloseModal" aria-label="Cerrar modal" title="Cerrar modal" class="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg text-slate-400 hover:text-cyan-200 hover:bg-slate-900 cursor-pointer transition active:scale-90">
             <X class="w-4 h-4" />
           </button>
         </div>
@@ -132,8 +204,8 @@ async function handleTransmit() {
           <li>Conecta el ESP32 al PC con un <span class="text-cyan-300">cable USB de datos</span> (no solo de carga).</li>
           <li>Pulsa <span class="text-cyan-300 font-bold">"Conectar ESP32 (USB)"</span> y selecciona el puerto serie (CP2102/CH340).</li>
           <li><span class="text-cyan-300">Auto-reinicio:</span> El ESP32 se auto-reinicia por diseño al abrir el puerto serie (DTR/RTS).</li>
-          <li>Digita tu SSID de 2.4 GHz, clave e IP de servidor y pulsa <span class="text-cyan-300 font-bold">"Transmitir al ESP32"</span>.</li>
-          <li>El ESP32 guardará la configuración en memoria flash NVS e iniciará el enlace Wi-Fi.</li>
+          <li>Digita tu SSID de 2.4 GHz, clave y servidor y pulsa <span class="text-cyan-300 font-bold">"Transmitir al ESP32"</span>.</li>
+          <li>El enlace USB permanecerá activo en segundo plano al cerrar este modal.</li>
         </ol>
       </div>
 
@@ -141,21 +213,29 @@ async function handleTransmit() {
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs font-mono">
         <div>
           <label class="block text-[10px] font-bold text-slate-300 mb-0.5 flex items-center gap-1"><Wifi class="w-3 h-3 text-cyan-400" /> Red Wi-Fi (SSID)</label>
-          <input v-model="ssid" type="text" placeholder="Mi_Red_WiFi" class="w-full bg-slate-900 border border-cyan-500/30 rounded-xl px-3 py-2 sm:py-1.5 text-base sm:text-xs text-white placeholder-slate-600 focus:border-cyan-400 focus:outline-none font-mono" />
+          <input v-model="form.ssid" type="text" placeholder="Mi_Red_WiFi" class="w-full bg-slate-900 border border-cyan-500/30 rounded-xl px-3 py-2 sm:py-1.5 text-base sm:text-xs text-white placeholder-slate-600 focus:border-cyan-400 focus:outline-none font-mono" />
         </div>
         <div>
           <label class="block text-[10px] font-bold text-slate-300 mb-0.5">Clave Wi-Fi</label>
           <div class="relative">
-            <input v-model="password" :type="showPassword ? 'text' : 'password'" placeholder="••••••••" class="w-full bg-slate-900 border border-cyan-500/30 rounded-xl px-3 py-2 sm:py-1.5 pr-10 text-base sm:text-xs text-white placeholder-slate-600 focus:border-cyan-400 focus:outline-none font-mono" />
+            <input v-model="form.pass" :type="showPassword ? 'text' : 'password'" placeholder="••••••••" class="w-full bg-slate-900 border border-cyan-500/30 rounded-xl px-3 py-2 sm:py-1.5 pr-10 text-base sm:text-xs text-white placeholder-slate-600 focus:border-cyan-400 focus:outline-none font-mono" />
             <button type="button" @click="showPassword = !showPassword" aria-label="Mostrar u ocultar contraseña" class="absolute right-0 top-0 bottom-0 min-w-[40px] flex items-center justify-center text-slate-400 hover:text-cyan-300 cursor-pointer">
               <EyeOff v-if="showPassword" class="w-4 h-4" /><Eye v-else class="w-4 h-4" />
             </button>
           </div>
         </div>
         <div>
-          <label class="block text-[10px] font-bold text-slate-300 mb-0.5 flex items-center gap-1"><Server class="w-3 h-3 text-cyan-400" /> Servidor Backend</label>
-          <input v-model="serverIp" type="text" placeholder="192.168.1.19" class="w-full bg-slate-900 border border-cyan-500/30 rounded-xl px-3 py-2 sm:py-1.5 text-base sm:text-xs text-white placeholder-slate-600 focus:border-cyan-400 focus:outline-none font-mono" />
+          <label class="block text-[10px] font-bold text-slate-300 mb-0.5 flex items-center gap-1"><Server class="w-3 h-3 text-cyan-400" /> Servidor Backend (Tailscale Funnel o IP Local)</label>
+          <input v-model="form.server" type="text" placeholder="https://servidor-taller.tailf19567.ts.net:10000" class="w-full bg-slate-900 border border-cyan-500/30 rounded-xl px-3 py-2 sm:py-1.5 text-base sm:text-xs text-white placeholder-slate-600 focus:border-cyan-400 focus:outline-none font-mono" />
         </div>
+      </div>
+
+      <!-- Estado en Vivo recibido por USB -->
+      <div v-if="deviceStatus" class="p-2 rounded-xl bg-slate-950/90 border border-emerald-500/30 text-[10px] font-mono grid grid-cols-2 sm:grid-cols-4 gap-2 text-slate-300">
+        <div><span class="text-slate-500">CO₂e:</span> <span class="text-emerald-400 font-bold">{{ Number(deviceStatus.sensors?.ppm ?? deviceStatus.ppm ?? 0).toFixed(0) }} PPM</span></div>
+        <div><span class="text-slate-500">CO:</span> <span class="text-cyan-300 font-bold">{{ Number(deviceStatus.sensors?.co_ppm ?? deviceStatus.co_ppm ?? 0).toFixed(1) }} PPM</span></div>
+        <div><span class="text-slate-500">Gyro:</span> <span class="text-amber-300 font-bold">{{ Number(deviceStatus.sensors?.eye_x ?? 0).toFixed(1) }}, {{ Number(deviceStatus.sensors?.eye_y ?? 0).toFixed(1) }}</span></div>
+        <div><span class="text-slate-500">Wi-Fi:</span> <span :class="deviceStatus.network?.connected ? 'text-emerald-400' : 'text-amber-400'">{{ deviceStatus.network?.connected ? (deviceStatus.network?.ip || 'ONLINE') : 'USB DIRECTO' }}</span></div>
       </div>
 
       <!-- Barra de Acciones USB & Transmisión -->

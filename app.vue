@@ -34,8 +34,8 @@ const editingSession = ref<SessionData | null>(null)
 
 const {
   telemetry, history, sessions, selectedSessionId,
-  operationMode, hardwareStatus, effectiveRiskStatus,
-  isModalOpen, viewMode,
+  wsConnected, usbConnected, operationMode, hardwareStatus, effectiveRiskStatus,
+  lastPacketAgeSec, isModalOpen, viewMode,
   setOperationMode, toggleViewMode, selectSession, fetchSessions,
   deleteSession, setManualGyro, triggerGyroShake
 } = useAirGuardian()
@@ -57,6 +57,9 @@ async function handleDeleteSession(session: SessionData & { session_id?: string 
       class="shrink-0"
       :operation-mode="operationMode"
       :hardware-status="hardwareStatus"
+      :ws-connected="wsConnected"
+      :usb-connected="usbConnected"
+      :last-packet-age-sec="lastPacketAgeSec"
       @set-operation-mode="setOperationMode"
       @open-digital-twin="isDigitalTwinModalOpen = true"
       @open-academic="isAcademicModalOpen = true"
@@ -100,9 +103,15 @@ async function handleDeleteSession(session: SessionData & { session_id?: string 
             :ax="telemetry.ax"
             :ay="telemetry.ay"
             :az="telemetry.az"
+            :operation-mode="operationMode"
+            :hardware-status="hardwareStatus"
+            :ws-connected="wsConnected"
+            :usb-connected="usbConnected"
+            :last-packet-age-sec="lastPacketAgeSec"
             @toggle-screen-mode="toggleViewMode"
             @shake-device="triggerGyroShake"
             @open-3d-modal="isDigitalTwinModalOpen = true"
+            @switch-to-local="setOperationMode('LOCAL')"
           />
         </div>
 
@@ -126,6 +135,7 @@ async function handleDeleteSession(session: SessionData & { session_id?: string 
           :roll="telemetry.roll"
           :is-shaking="telemetry.is_shaking"
           :device-emotion="telemetry.device_emotion"
+          :is-hardware-online="operationMode === 'LOCAL' || hardwareStatus === 'ONLINE'"
           @update-gyro="(x, y) => setManualGyro(x, y)"
           @shake="triggerGyroShake"
         />
@@ -136,6 +146,7 @@ async function handleDeleteSession(session: SessionData & { session_id?: string 
           :offline-pending="telemetry.offline_pending"
           :device-emotion="telemetry.device_emotion"
           :view-mode="viewMode"
+          :is-hardware-online="operationMode === 'LOCAL' || hardwareStatus === 'ONLINE'"
         />
         <LocationsMapBoard
           class="flex-1 min-h-0"
@@ -171,7 +182,7 @@ async function handleDeleteSession(session: SessionData & { session_id?: string 
     <NewCampaignModal v-if="isModalOpen" :is-open="isModalOpen" @created="fetchSessions" @close="isModalOpen = false" />
     <EditLocationModal v-if="isEditModalOpen" :is-open="isEditModalOpen" :session="editingSession" @close="isEditModalOpen = false" @saved="() => { isEditModalOpen = false; fetchSessions(); }" />
     <AcademicAuditoriumModal v-if="isAcademicModalOpen" :is-open="isAcademicModalOpen" :current-sensor-ppm="telemetry.ppm" @close="isAcademicModalOpen = false" />
-    <UsbWifiModal v-if="isUsbModalOpen" :is-open="isUsbModalOpen" @close="isUsbModalOpen = false" />
+    <UsbWifiModal :is-open="isUsbModalOpen" @close="isUsbModalOpen = false" />
     <RealtimeSensorsModal v-if="isSensorsModalOpen" :is-open="isSensorsModalOpen" :telemetry="telemetry" @close="isSensorsModalOpen = false" />
     <DataLakeModal v-if="isDataLakeModalOpen" :is-open="isDataLakeModalOpen" :sessions="sessions" :telemetry="telemetry" @close="isDataLakeModalOpen = false" />
   </div>

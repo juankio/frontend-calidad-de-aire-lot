@@ -21,6 +21,11 @@ const props = withDefaults(defineProps<{
   ax?: number
   ay?: number
   az?: number
+  operationMode?: 'LOCAL' | 'LIVE'
+  hardwareStatus?: 'ONLINE' | 'OFFLINE' | 'SIMULATED'
+  wsConnected?: boolean
+  usbConnected?: boolean
+  lastPacketAgeSec?: number | null
 }>(), {
   ppm: 412,
   coPpm: 5.8,
@@ -34,13 +39,19 @@ const props = withDefaults(defineProps<{
   eyeX: 0,
   eyeY: 0,
   isShaking: false,
-  mpuConnected: true
+  mpuConnected: true,
+  operationMode: 'LIVE',
+  hardwareStatus: 'OFFLINE',
+  wsConnected: false,
+  usbConnected: false,
+  lastPacketAgeSec: null
 })
 
 const emit = defineEmits<{
   (e: 'toggleScreenMode'): void
   (e: 'shakeDevice'): void
   (e: 'open3dModal'): void
+  (e: 'switchToLocal'): void
 }>()
 
 const chamberStage = ref<'DUAL' | 'XRAY' | '3D_FULL'>('DUAL')
@@ -55,6 +66,9 @@ const energyTheme = computed(() => {
   if (props.isShaking || props.riskStatus === 'DIZZY' || props.deviceEmotion === 'DIZZY') {
     return { color: '#d946ef', badge: 'border-fuchsia-500/80 text-fuchsia-300 bg-fuchsia-950/70 shadow-[0_0_15px_rgba(217,70,239,0.4)]', label: '¡SACUDIDA GIROSCOPIO • MAREADO!', pulse: 'animate-ping' }
   }
+  if (props.operationMode === 'LIVE' && props.hardwareStatus === 'OFFLINE' && !props.usbConnected) {
+    return { color: '#fb7185', badge: 'border-rose-500/80 text-rose-300 bg-rose-950/70 shadow-[0_0_15px_rgba(244,63,94,0.35)]', label: 'ESP32 APAGADO / ESPERANDO SEÑAL WI-FI', pulse: 'animate-pulse' }
+  }
   if (props.riskStatus === 'CRITICAL') {
     return { color: '#ef4444', badge: 'border-red-500/80 text-red-400 bg-red-950/60 shadow-[0_0_15px_rgba(239,68,68,0.4)]', label: 'NIVEL CRÍTICO • PELIGRO', pulse: 'animate-ping' }
   }
@@ -63,6 +77,9 @@ const energyTheme = computed(() => {
   }
   if (props.riskStatus === 'RECOVERY') {
     return { color: '#38bdf8', badge: 'border-sky-500/80 text-sky-300 bg-sky-950/60', label: 'PURGA & VENTILACIÓN', pulse: 'animate-pulse' }
+  }
+  if (props.usbConnected) {
+    return { color: '#06b6d4', badge: 'border-cyan-400/80 text-cyan-200 bg-cyan-950/70 shadow-[0_0_12px_rgba(6,182,212,0.35)]', label: 'USB ESP32 + WIFI EN LÍNEA', pulse: 'animate-pulse' }
   }
   return { color: '#06b6d4', badge: 'border-cyan-500/70 text-cyan-300 bg-cyan-950/50 shadow-[0_0_10px_rgba(6,182,212,0.25)]', label: 'CENTINELA ACTIVO • SINCRONIZADO', pulse: 'animate-pulse' }
 })
@@ -90,6 +107,20 @@ const energyTheme = computed(() => {
           <span>SOLO 3D</span>
         </button>
       </div>
+    </div>
+
+    <div
+      v-if="operationMode === 'LIVE' && hardwareStatus === 'OFFLINE' && !usbConnected"
+      class="bg-rose-950/85 border border-rose-500/50 text-rose-200 rounded-lg px-2.5 py-1 text-[8.5px] font-mono flex items-center justify-between gap-2 shrink-0"
+    >
+      <span class="truncate">📡 MODO EN VIVO: El servidor Tailscale está listo, pero tu ESP32 físico está apagado o sin Wi-Fi (0 paquetes recibidos).</span>
+      <button
+        type="button"
+        @click="emit('switchToLocal')"
+        class="px-2 py-0.5 rounded bg-amber-500/25 hover:bg-amber-500/40 border border-amber-400/60 text-amber-200 font-bold shrink-0 transition cursor-pointer active:scale-95"
+      >
+        Cambiar a Simulador Local
+      </button>
     </div>
 
     <div v-if="chamberStage === 'DUAL'" class="flex-1 min-h-0 grid grid-cols-1 sm:grid-cols-12 gap-2 items-stretch overflow-hidden">

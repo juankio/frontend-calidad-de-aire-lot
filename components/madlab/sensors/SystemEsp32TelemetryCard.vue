@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Cpu, HardDrive, Clock, ShieldCheck, Sparkles, Monitor } from 'lucide-vue-next'
+import { Cpu, HardDrive, Clock, ShieldCheck, XCircle, Sparkles, Monitor } from 'lucide-vue-next'
 
 const props = defineProps<{
   uptimeS?: number
@@ -8,10 +8,14 @@ const props = defineProps<{
   offlinePending?: number
   deviceEmotion?: string
   viewMode?: string
+  isHardwareOnline?: boolean
 }>()
+
+const isOnline = computed(() => props.isHardwareOnline ?? true)
 
 // Formateo de Uptime a Días, Horas, Minutos, Segundos
 const formattedUptime = computed(() => {
+  if (!isOnline.value) return 'SIN SEÑAL'
   const total = Number(props.uptimeS ?? 3600)
   const h = Math.floor(total / 3600)
   const m = Math.floor((total % 3600) / 60)
@@ -21,15 +25,19 @@ const formattedUptime = computed(() => {
 })
 
 // Memoria Libre en KB
-const heapKb = computed(() => {
+const heapDisplay = computed(() => {
+  if (!isOnline.value) return 'SIN SEÑAL'
   const bytes = Number(props.freeHeap ?? 184320)
-  return (bytes / 1024).toFixed(1)
+  return `${(bytes / 1024).toFixed(1)} KB`
 })
 
 // Muestras encoladas en LittleFS Flash
 const pendingSamples = computed(() => Number(props.offlinePending ?? 0))
 
 const emotionDisplay = computed(() => {
+  if (!isOnline.value) {
+    return { text: 'ESP32 APAGADO', color: 'text-rose-400', bg: 'bg-rose-950/70 border-rose-600/60' }
+  }
   const e = (props.deviceEmotion || 'OPTIMAL').toUpperCase()
   if (e.includes('CRITICAL') || e.includes('DANGER')) return { text: 'CRÍTICA / PÁNICO', color: 'text-rose-400', bg: 'bg-rose-950/70 border-rose-600' }
   if (e.includes('WARNING') || e.includes('ALERT')) return { text: 'ALERTA PREDICTIVA', color: 'text-amber-300', bg: 'bg-amber-950/70 border-amber-500' }
@@ -60,9 +68,13 @@ const viewModeDisplay = computed(() => {
           <p class="text-[8px] sm:text-[8.5px] font-mono text-slate-400">Xtensa Dual-Core 32b LX6 & FreeRTOS</p>
         </div>
       </div>
-      <div class="flex items-center gap-1 text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded-full border border-cyan-500/40 bg-slate-950 text-cyan-300 shrink-0">
-        <ShieldCheck class="w-2.5 h-2.5 text-emerald-400" />
-        <span>SILICIO ACTIVO</span>
+      <div
+        class="flex items-center gap-1 text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded-full border shrink-0"
+        :class="isOnline ? 'border-cyan-500/40 bg-slate-950 text-cyan-300' : 'border-rose-500/50 bg-rose-950/60 text-rose-400'"
+      >
+        <ShieldCheck v-if="isOnline" class="w-2.5 h-2.5 text-emerald-400" />
+        <XCircle v-else class="w-2.5 h-2.5 text-rose-400" />
+        <span>{{ isOnline ? 'SILICIO ACTIVO' : 'ESP32 APAGADO / SIN WIFI' }}</span>
       </div>
     </div>
 
@@ -74,7 +86,7 @@ const viewModeDisplay = computed(() => {
           <Clock class="w-2.5 h-2.5 text-cyan-400" />
           <span>Tiempo Activo</span>
         </div>
-        <div class="text-[11px] sm:text-xs font-bold text-slate-100 mt-0.5 leading-tight">{{ formattedUptime }}</div>
+        <div class="text-[11px] sm:text-xs font-bold mt-0.5 leading-tight" :class="isOnline ? 'text-slate-100' : 'text-rose-400'">{{ formattedUptime }}</div>
         <div class="text-[7px] text-slate-500">millis() reloj</div>
       </div>
 
@@ -84,7 +96,7 @@ const viewModeDisplay = computed(() => {
           <Cpu class="w-2.5 h-2.5 text-emerald-400" />
           <span>Heap Libre</span>
         </div>
-        <div class="text-[11px] sm:text-xs font-bold text-emerald-400 mt-0.5 leading-tight">{{ heapKb }} KB</div>
+        <div class="text-[11px] sm:text-xs font-bold mt-0.5 leading-tight" :class="isOnline ? 'text-emerald-400' : 'text-rose-400'">{{ heapDisplay }}</div>
         <div class="text-[7px] text-slate-500">SRAM 320KB</div>
       </div>
 
