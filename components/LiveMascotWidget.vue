@@ -63,6 +63,8 @@ function renderFrame() {
 
   renderGc9a01Display(ctx, {
     ppm: props.ppm,
+    coPpm: props.coPpm,
+    riskStatus: props.riskStatus,
     temperature: props.temperature,
     humidity: props.humidity,
     emotion: normalizeGc9a01Emotion(props.deviceEmotion || props.riskStatus, props.isShaking),

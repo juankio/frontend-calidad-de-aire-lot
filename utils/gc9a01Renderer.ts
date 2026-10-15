@@ -2,8 +2,16 @@ import { renderEyes } from './gc9a01/eyes'
 import { renderCircularHUD } from './gc9a01/hud'
 import { renderMouth } from './gc9a01/mouths'
 import { drawSweatAndTears, renderBasicOverlays } from './gc9a01/overlaysBasic'
-import { drawHeadphones, renderPropOverlays } from './gc9a01/overlaysProps'
-import { EMOTION_THEMES, drawBackground, drawBlush, getPaletteForEmotion } from './gc9a01/palettes'
+import { renderPropOverlays } from './gc9a01/overlaysProps'
+import {
+  EMOTION_THEMES,
+  SEMANTIC_AIR_PALETTES,
+  drawBackground,
+  drawBlush,
+  getPaletteForEmotion,
+  resolveAirQualityTier,
+  type AirQualityTier
+} from './gc9a01/palettes'
 import {
   computeFaceMetrics,
   getGc9a01EmotionLabel,
@@ -27,11 +35,14 @@ import {
 export {
   EMOTION_THEMES,
   GC9A01_EMOTION_CATALOG,
+  SEMANTIC_AIR_PALETTES,
   getGc9a01EmotionLabel,
   getPaletteForEmotion,
   normalizeGc9a01Emotion,
+  resolveAirQualityTier,
   sharedState,
   stepSharedGc9a01Animation,
+  type AirQualityTier,
   type EmotionPalette,
   type EmotionTheme,
   type Gc9a01Emotion,
@@ -51,20 +62,18 @@ function drawFaceMode(
 ): void {
   ctx.save()
   if (emotion === 'BABY_ROCKING') {
-    const rockAngle = Math.sin(now * 0.0032) * 0.15
+    const rockAngle = Math.sin(now * 0.0032) * 0.14
     ctx.translate(120, 120)
     ctx.rotate(rockAngle)
     ctx.translate(-120, -120)
   }
 
   const metrics = computeFaceMetrics(emotion, now)
-  if (emotion === 'MUSIC_VIBE') drawHeadphones(ctx, metrics.centerY, now)
-
   renderEyes(ctx, emotion, palette, metrics, now)
   drawBlush(ctx, palette, metrics.wallShiftX, metrics.centerY)
-  drawSweatAndTears(ctx, emotion, metrics, now)
+  drawSweatAndTears(ctx, emotion, metrics, now, palette)
   renderMouth(ctx, emotion, palette, metrics, now)
-  renderBasicOverlays(ctx, emotion, metrics, now)
+  renderBasicOverlays(ctx, emotion, metrics, now, palette)
   renderPropOverlays(ctx, params, emotion, palette, metrics, now)
   ctx.restore()
 }
@@ -73,7 +82,7 @@ export function renderGc9a01Display(ctx: CanvasRenderingContext2D, params: Gc9a0
   stepSharedGc9a01Animation(params)
   const now = getNowMs(params.nowMs)
   const emotion = normalizeGc9a01Emotion(params.emotion, params.isShaking)
-  const palette = getPaletteForEmotion(emotion)
+  const palette = getPaletteForEmotion(emotion, params.riskStatus, params.ppm, params.coPpm)
 
   ctx.save()
   ctx.clearRect(0, 0, 240, 240)

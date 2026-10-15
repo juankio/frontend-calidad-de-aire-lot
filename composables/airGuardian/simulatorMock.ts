@@ -30,13 +30,16 @@ export function runLocalMockStep() {
   const nowMs = Date.now()
   const driftEyeX = Number((Math.sin(nowMs * 0.0012) * 2.2).toFixed(2))
   const driftEyeY = Number((Math.cos(nowMs * 0.0009) * 1.4).toFixed(2))
-  const carouselIdx = Math.floor(nowMs / 6000) % LOCAL_IDLE_CAROUSEL.length
+  const isGestureWindow = Math.floor(nowMs / 2000) % 8 === 0
+  const carouselIdx = Math.floor(nowMs / 16000) % LOCAL_IDLE_CAROUSEL.length
   const carouselEmotion: Gc9a01Emotion =
     mockRisk === 'CRITICAL'
       ? 'CRITICAL'
       : mockRisk === 'WARNING_PREDICTIVE'
         ? 'WARNING_PREDICTIVE'
-        : (LOCAL_IDLE_CAROUSEL[carouselIdx] ?? 'OPTIMAL')
+        : isGestureWindow
+          ? (LOCAL_IDLE_CAROUSEL[carouselIdx] ?? 'OPTIMAL')
+          : 'OPTIMAL'
 
   applyLiveTelemetry({
     device_id: 'air-guardian-01',

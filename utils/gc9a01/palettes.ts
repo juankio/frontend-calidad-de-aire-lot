@@ -1,60 +1,103 @@
 import type { EmotionTheme, EyeMode, EyebrowMode, Gc9a01Emotion, MouthMode } from './types'
 
-function theme(
-  bgCenter: string,
-  bgEdge: string,
-  primary: string,
-  pupil: string,
-  blush: string,
-  eyeMode: EyeMode,
-  mouthMode: MouthMode,
-  eyebrowMode: EyebrowMode = 'normal'
-): EmotionTheme {
-  return { bgCenter, bgEdge, primary, pupil, blush, eyeMode, mouthMode, eyebrowMode }
+export type AirQualityTier = 'OPTIMAL' | 'WARNING_PREDICTIVE' | 'CRITICAL' | 'RECOVERY'
+
+interface AirColorSet {
+  bgCenter: string
+  bgEdge: string
+  primary: string
+  pupil: string
+  blush: string
 }
 
-const BASE = ['#06281b', '#031810', '#10b981', '#022c22', 'rgba(16, 185, 129, 0.35)'] as const
+export const SEMANTIC_AIR_PALETTES: Record<AirQualityTier, AirColorSet> = {
+  OPTIMAL: { bgCenter: '#06281b', bgEdge: '#031810', primary: '#10b981', pupil: '#022c22', blush: 'rgba(16, 185, 129, 0.35)' },
+  WARNING_PREDICTIVE: { bgCenter: '#331d06', bgEdge: '#1c1003', primary: '#fbbf24', pupil: '#451a03', blush: 'rgba(251, 191, 36, 0.35)' },
+  CRITICAL: { bgCenter: '#3d0812', bgEdge: '#220409', primary: '#f43f5e', pupil: '#4c0519', blush: 'rgba(244, 63, 94, 0.45)' },
+  RECOVERY: { bgCenter: '#082638', bgEdge: '#041520', primary: '#38bdf8', pupil: '#082f49', blush: 'rgba(56, 189, 248, 0.35)' }
+}
+
+const SLEEP_AIR_PALETTES: Record<AirQualityTier, AirColorSet> = {
+  OPTIMAL: { bgCenter: '#041b12', bgEdge: '#020e09', primary: '#059669', pupil: '#022019', blush: 'rgba(16, 185, 129, 0.22)' },
+  WARNING_PREDICTIVE: { bgCenter: '#211304', bgEdge: '#120a02', primary: '#d97706', pupil: '#331202', blush: 'rgba(251, 191, 36, 0.22)' },
+  CRITICAL: { bgCenter: '#26050b', bgEdge: '#140206', primary: '#e11d48', pupil: '#360312', blush: 'rgba(244, 63, 94, 0.28)' },
+  RECOVERY: { bgCenter: '#051824', bgEdge: '#020c12', primary: '#0284c7', pupil: '#062033', blush: 'rgba(56, 189, 248, 0.22)' }
+}
+
+function gestureTheme(tier: AirQualityTier, eyeMode: EyeMode, mouthMode: MouthMode, eyebrowMode: EyebrowMode = 'normal'): EmotionTheme {
+  return { ...SEMANTIC_AIR_PALETTES[tier], eyeMode, mouthMode, eyebrowMode }
+}
 
 export const EMOTION_THEMES: Record<Gc9a01Emotion, EmotionTheme> = {
-  OPTIMAL: theme(...BASE, 'normal', 'smile', 'normal'),
-  WARNING_PREDICTIVE: theme('#331d06', '#1f1103', '#f59e0b', '#451a03', 'rgba(245, 158, 11, 0.35)', 'normal', 'neutral', 'angry'),
-  GAS_MASK: theme('#2c2208', '#171204', '#facc15', '#3f2e05', 'rgba(250, 204, 21, 0.25)', 'normal', 'gasMask', 'angry'),
-  CRITICAL: theme('#3d0812', '#25040a', '#f43f5e', '#4c0519', 'rgba(244, 63, 94, 0.45)', 'cross', 'openOval', 'angry'),
-  RECOVERY: theme('#082638', '#041520', '#38bdf8', '#082f49', 'rgba(56, 189, 248, 0.35)', 'happyArc', 'smile', 'normal'),
-  SLEEPING: theme('#111827', '#090d14', '#64748b', '#0f172a', 'rgba(100, 116, 139, 0.25)', 'sleepArc', 'neutral', 'normal'),
-  DIZZY: theme('#232e0c', '#141b06', '#eab308', '#1e293b', 'rgba(163, 230, 53, 0.45)', 'spiral', 'wavy', 'normal'),
-  NAUSEA: theme('#163010', '#0b1908', '#84cc16', '#1a2e05', 'rgba(132, 204, 22, 0.55)', 'squint', 'wavy', 'worried'),
-  VOMIT: theme('#1d360d', '#0d1a05', '#a3e635', '#1a2e05', 'rgba(163, 230, 53, 0.5)', 'squint', 'vomit', 'worried'),
-  WIPER: theme('#082638', '#04141f', '#38bdf8', '#082f49', 'rgba(56, 189, 248, 0.4)', 'normal', 'neutral', 'worried'),
-  BABY_ROCKING: theme('#29152c', '#150a18', '#f472b6', '#3b0764', 'rgba(244, 114, 182, 0.55)', 'happyArc', 'pacifier', 'normal'),
-  BABY_SLEEP: theme('#0f172a', '#070b14', '#93c5fd', '#1e1b4b', 'rgba(244, 114, 182, 0.35)', 'sleepArc', 'neutral', 'normal'),
-  STARTLED: theme('#2e1035', '#18071c', '#38bdf8', '#0f172a', 'rgba(244, 63, 94, 0.45)', 'wide', 'openOval', 'surprised'),
-  UPSIDE_DOWN: theme('#36101e', '#1f0810', '#fb7185', '#4c0519', 'rgba(251, 113, 133, 0.5)', 'upsideDown', 'wavy', 'normal'),
-  WALL_LEFT: theme('#072a24', '#031714', '#2dd4bf', '#042f2e', 'rgba(45, 212, 191, 0.4)', 'wallLeft', 'neutral', 'normal'),
-  WALL_RIGHT: theme('#072a24', '#031714', '#2dd4bf', '#042f2e', 'rgba(45, 212, 191, 0.4)', 'wallRight', 'neutral', 'normal'),
-  FREEFALL: theme('#1e1b4b', '#0d0b26', '#38bdf8', '#090d16', 'rgba(56, 189, 248, 0.35)', 'wide', 'yawn', 'surprised'),
-  WINK: theme(...BASE, 'wink', 'tongue', 'normal'),
-  LOVE: theme('#380d24', '#1f0613', '#f472b6', '#500724', 'rgba(244, 63, 94, 0.6)', 'heart', 'smile', 'normal'),
-  BUBBLEGUM: theme('#2b122a', '#170816', '#34d399', '#064e3b', 'rgba(244, 114, 182, 0.5)', 'normal', 'bubblegum', 'normal'),
-  WHISTLE: theme(...BASE, 'normal', 'whistle', 'normal'),
-  SNEEZE: theme(...BASE, 'squint', 'neutral', 'normal'),
-  YAWN: theme(...BASE, 'sleepArc', 'yawn', 'normal'),
-  DERP: theme(...BASE, 'derp', 'tongue', 'skeptical'),
-  SUSPICIOUS: theme(...BASE, 'suspicious', 'neutral', 'skeptical'),
-  GLASSES_COOL: theme('#092230', '#04121a', '#22d3ee', '#083344', 'rgba(34, 211, 238, 0.35)', 'normal', 'smirk', 'normal'),
-  COFFEE: theme('#27170c', '#140b05', '#fbbf24', '#3b1c06', 'rgba(251, 191, 36, 0.4)', 'normal', 'neutral', 'normal'),
-  RAMEN: theme('#2b130a', '#170904', '#fb923c', '#431407', 'rgba(251, 146, 60, 0.45)', 'normal', 'neutral', 'normal'),
-  MUSIC_VIBE: theme('#22103b', '#110720', '#c084fc', '#2e1065', 'rgba(192, 132, 252, 0.45)', 'normal', 'smile', 'normal'),
-  BUTTERFLY: theme('#07282c', '#031518', '#2dd4bf', '#042f2e', 'rgba(244, 114, 182, 0.45)', 'normal', 'smile', 'surprised'),
-  DETECTIVE: theme('#1e2412', '#101308', '#eab308', '#1e293b', 'rgba(234, 179, 8, 0.3)', 'detective', 'neutral', 'angry'),
-  ZEN: theme('#062830', '#031419', '#22d3ee', '#083344', 'rgba(34, 211, 238, 0.35)', 'sleepArc', 'neutral', 'normal'),
-  CRYING: theme('#0c213b', '#061120', '#60a5fa', '#172554', 'rgba(96, 165, 250, 0.45)', 'normal', 'wavy', 'worried'),
-  LAUGHING: theme('#092c1e', '#041810', '#34d399', '#022c22', 'rgba(251, 113, 133, 0.5)', 'squint', 'laugh', 'normal'),
-  HOT_PANTING: theme('#3b1509', '#210a04', '#fb923c', '#431407', 'rgba(244, 63, 94, 0.55)', 'normal', 'tongue', 'worried')
+  OPTIMAL: gestureTheme('OPTIMAL', 'normal', 'smile', 'normal'),
+  WARNING_PREDICTIVE: gestureTheme('WARNING_PREDICTIVE', 'normal', 'neutral', 'angry'),
+  GAS_MASK: gestureTheme('WARNING_PREDICTIVE', 'normal', 'gasMask', 'angry'),
+  CRITICAL: gestureTheme('CRITICAL', 'cross', 'openOval', 'angry'),
+  RECOVERY: gestureTheme('RECOVERY', 'happyArc', 'smile', 'normal'),
+  SLEEPING: gestureTheme('OPTIMAL', 'sleepArc', 'neutral', 'normal'),
+  DIZZY: gestureTheme('OPTIMAL', 'spiral', 'wavy', 'worried'),
+  NAUSEA: gestureTheme('OPTIMAL', 'squint', 'wavy', 'worried'),
+  VOMIT: gestureTheme('OPTIMAL', 'squint', 'vomit', 'worried'),
+  WIPER: gestureTheme('OPTIMAL', 'normal', 'neutral', 'worried'),
+  BABY_ROCKING: gestureTheme('OPTIMAL', 'sleepArc', 'smile', 'normal'),
+  BABY_SLEEP: gestureTheme('OPTIMAL', 'sleepArc', 'neutral', 'normal'),
+  STARTLED: gestureTheme('OPTIMAL', 'wide', 'openOval', 'surprised'),
+  UPSIDE_DOWN: gestureTheme('OPTIMAL', 'upsideDown', 'wavy', 'surprised'),
+  WALL_LEFT: gestureTheme('OPTIMAL', 'wallLeft', 'neutral', 'worried'),
+  WALL_RIGHT: gestureTheme('OPTIMAL', 'wallRight', 'neutral', 'worried'),
+  FREEFALL: gestureTheme('OPTIMAL', 'wide', 'yawn', 'surprised'),
+  WINK: gestureTheme('OPTIMAL', 'wink', 'tongue', 'normal'),
+  LOVE: gestureTheme('OPTIMAL', 'heart', 'smile', 'normal'),
+  BUBBLEGUM: gestureTheme('OPTIMAL', 'normal', 'bubblegum', 'normal'),
+  WHISTLE: gestureTheme('OPTIMAL', 'normal', 'whistle', 'normal'),
+  SNEEZE: gestureTheme('OPTIMAL', 'squint', 'openOval', 'worried'),
+  YAWN: gestureTheme('OPTIMAL', 'sleepArc', 'yawn', 'normal'),
+  DERP: gestureTheme('OPTIMAL', 'derp', 'tongue', 'skeptical'),
+  SUSPICIOUS: gestureTheme('OPTIMAL', 'suspicious', 'neutral', 'skeptical'),
+  GLASSES_COOL: gestureTheme('OPTIMAL', 'normal', 'smirk', 'skeptical'),
+  COFFEE: gestureTheme('OPTIMAL', 'happyArc', 'smile', 'normal'),
+  RAMEN: gestureTheme('OPTIMAL', 'happyArc', 'openOval', 'normal'),
+  MUSIC_VIBE: gestureTheme('OPTIMAL', 'happyArc', 'smile', 'normal'),
+  BUTTERFLY: gestureTheme('OPTIMAL', 'normal', 'smile', 'surprised'),
+  DETECTIVE: gestureTheme('OPTIMAL', 'detective', 'smirk', 'skeptical'),
+  ZEN: gestureTheme('OPTIMAL', 'sleepArc', 'smile', 'normal'),
+  CRYING: gestureTheme('OPTIMAL', 'normal', 'wavy', 'worried'),
+  LAUGHING: gestureTheme('OPTIMAL', 'happyArc', 'laugh', 'normal'),
+  HOT_PANTING: gestureTheme('OPTIMAL', 'normal', 'tongue', 'worried')
 }
 
-export function getPaletteForEmotion(emotion: Gc9a01Emotion): EmotionTheme {
-  return EMOTION_THEMES[emotion] ?? EMOTION_THEMES.OPTIMAL
+export function resolveAirQualityTier(
+  emotion: Gc9a01Emotion,
+  riskStatus?: string,
+  ppm?: number,
+  coPpm?: number
+): AirQualityTier {
+  const status = (riskStatus ?? '').toUpperCase().trim()
+  if (status === 'CRITICAL' || status === 'DANGER' || (ppm !== undefined && ppm >= 1000) || (coPpm !== undefined && coPpm >= 35) || emotion === 'CRITICAL') {
+    return 'CRITICAL'
+  }
+  if (
+    status === 'WARNING_PREDICTIVE' || status === 'PREDICTIVE_WARNING' || status === 'WARNING' ||
+    (ppm !== undefined && ppm >= 700 && ppm < 1000) || (coPpm !== undefined && coPpm >= 9 && coPpm < 35) ||
+    emotion === 'WARNING_PREDICTIVE' || emotion === 'GAS_MASK'
+  ) {
+    return 'WARNING_PREDICTIVE'
+  }
+  if (status === 'RECOVERY' || emotion === 'RECOVERY') return 'RECOVERY'
+  return 'OPTIMAL'
+}
+
+export function getPaletteForEmotion(
+  emotion: Gc9a01Emotion,
+  riskStatus?: string,
+  ppm?: number,
+  coPpm?: number
+): EmotionTheme {
+  const gesture = EMOTION_THEMES[emotion] ?? EMOTION_THEMES.OPTIMAL
+  const tier = resolveAirQualityTier(emotion, riskStatus, ppm, coPpm)
+  const isSleep = emotion === 'SLEEPING' || emotion === 'BABY_SLEEP'
+  const colors = isSleep ? SLEEP_AIR_PALETTES[tier] : SEMANTIC_AIR_PALETTES[tier]
+  return { ...colors, eyeMode: gesture.eyeMode, mouthMode: gesture.mouthMode, eyebrowMode: gesture.eyebrowMode }
 }
 
 export function drawBackground(
@@ -72,75 +115,40 @@ export function drawBackground(
   ctx.fillStyle = grad
   ctx.fill()
 
-  if (emotion === 'UPSIDE_DOWN' || emotion === 'HOT_PANTING') {
-    const heatGrad = ctx.createLinearGradient(120, 0, 120, 115)
-    heatGrad.addColorStop(0, 'rgba(244, 63, 94, 0.48)')
-    heatGrad.addColorStop(1, 'rgba(244, 63, 94, 0)')
-    ctx.fillStyle = heatGrad
-    ctx.fillRect(0, 0, 240, 120)
-  }
-
   ctx.strokeStyle = 'rgba(148, 163, 184, 0.08)'
   ctx.lineWidth = 1
   for (const radius of [55, 92]) {
-    ctx.beginPath()
-    ctx.arc(120, 120, radius, 0, Math.PI * 2)
-    ctx.stroke()
+    ctx.beginPath(); ctx.arc(120, 120, radius, 0, Math.PI * 2); ctx.stroke()
   }
 
   ctx.beginPath()
-  ctx.moveTo(20, 120)
-  ctx.lineTo(220, 120)
-  ctx.moveTo(120, 20)
-  ctx.lineTo(120, 220)
+  ctx.moveTo(20, 120); ctx.lineTo(220, 120)
+  ctx.moveTo(120, 20); ctx.lineTo(120, 220)
   ctx.stroke()
 
   if (emotion === 'FREEFALL') {
     ctx.save()
-    ctx.strokeStyle = 'rgba(186, 230, 253, 0.38)'
-    ctx.lineWidth = 2
-    ctx.lineCap = 'round'
-    for (let i = 0; i < 10; i++) {
-      const lx = 24 + ((i * 23) % 192)
+    ctx.strokeStyle = palette.primary; ctx.globalAlpha = 0.35; ctx.lineWidth = 2; ctx.lineCap = 'round'
+    for (let i = 0; i < 8; i++) {
+      const lx = 26 + ((i * 25) % 188)
       const ly = ((now * 0.45 + i * 37) % 240) - 20
-      ctx.beginPath()
-      ctx.moveTo(lx, ly)
-      ctx.lineTo(lx, ly + 28)
-      ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx, ly + 26); ctx.stroke()
     }
     ctx.restore()
   }
 
-  if (emotion === 'ZEN') {
-    ctx.save()
-    const pulseR = 68 + ((now * 0.025) % 42)
-    const alpha = Math.max(0, 1 - (pulseR - 68) / 42) * 0.45
-    ctx.strokeStyle = `rgba(34, 211, 238, ${alpha.toFixed(2)})`
-    ctx.lineWidth = 2.5
-    ctx.beginPath()
-    ctx.arc(120, 120, pulseR, 0, Math.PI * 2)
-    ctx.stroke()
-    ctx.restore()
-  }
-
+  const isCritical = palette.primary === '#f43f5e' || emotion === 'CRITICAL'
   ctx.beginPath()
   ctx.arc(120, 120, 117, 0, Math.PI * 2)
-  ctx.strokeStyle = emotion === 'CRITICAL' && Math.sin(now * 0.016) > 0 ? '#f43f5e' : '#334155'
-  ctx.lineWidth = emotion === 'CRITICAL' ? 4 : 2.5
+  ctx.strokeStyle = isCritical && Math.sin(now * 0.016) > 0 ? palette.primary : '#334155'
+  ctx.lineWidth = isCritical ? 4 : 2.5
   ctx.stroke()
 
   ctx.save()
-  ctx.strokeStyle = palette.primary
-  ctx.lineWidth = 2.5
-  ctx.lineCap = 'round'
-  ctx.shadowColor = palette.primary
-  ctx.shadowBlur = 8
-  ctx.beginPath()
-  ctx.arc(120, 120, 117, -0.72 * Math.PI, -0.28 * Math.PI)
-  ctx.stroke()
-  ctx.beginPath()
-  ctx.arc(120, 120, 117, 0.32 * Math.PI, 0.68 * Math.PI)
-  ctx.stroke()
+  ctx.strokeStyle = palette.primary; ctx.lineWidth = 2.5; ctx.lineCap = 'round'
+  ctx.shadowColor = palette.primary; ctx.shadowBlur = 8
+  ctx.beginPath(); ctx.arc(120, 120, 117, -0.72 * Math.PI, -0.28 * Math.PI); ctx.stroke()
+  ctx.beginPath(); ctx.arc(120, 120, 117, 0.32 * Math.PI, 0.68 * Math.PI); ctx.stroke()
   ctx.restore()
 }
 
@@ -153,9 +161,7 @@ export function drawBlush(
   ctx.save()
   ctx.fillStyle = palette.blush
   for (const bx of [56 + wallShiftX, 184 + wallShiftX]) {
-    ctx.beginPath()
-    ctx.ellipse(bx, centerY + 14, 10, 5.5, 0, 0, Math.PI * 2)
-    ctx.fill()
+    ctx.beginPath(); ctx.ellipse(bx, centerY + 14, 10, 5.5, 0, 0, Math.PI * 2); ctx.fill()
   }
   ctx.restore()
 }

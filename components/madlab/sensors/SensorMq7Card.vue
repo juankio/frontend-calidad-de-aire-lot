@@ -19,7 +19,7 @@ const coStatus = computed(() => {
       desc: 'Nivel normal en recinto cerrado',
       color: 'text-emerald-400',
       bg: 'bg-emerald-950/60 border-emerald-500/40',
-      bar: 'bg-emerald-500',
+      bar: 'bg-gradient-to-r from-emerald-500 to-teal-400 shadow-[0_0_10px_rgba(16,185,129,0.6)]',
       icon: CheckCircle2
     }
   }
@@ -29,7 +29,7 @@ const coStatus = computed(() => {
       desc: 'Ventilar ambiente inmediatamente',
       color: 'text-amber-300',
       bg: 'bg-amber-950/60 border-amber-500/40',
-      bar: 'bg-amber-500',
+      bar: 'bg-gradient-to-r from-amber-500 to-yellow-400 shadow-[0_0_10px_rgba(245,158,11,0.6)]',
       icon: AlertTriangle
     }
   }
@@ -38,15 +38,16 @@ const coStatus = computed(() => {
     desc: 'Evacuar recinto / Concentración letal',
     color: 'text-rose-400 animate-pulse',
     bg: 'bg-rose-950/70 border-rose-500/60 shadow-[0_0_12px_rgba(244,63,94,0.4)]',
-    bar: 'bg-rose-500',
+    bar: 'bg-gradient-to-r from-rose-600 to-red-400 shadow-[0_0_10px_rgba(244,63,94,0.7)]',
     icon: ShieldAlert
   }
 })
 
-// Barra de nivel porcentual (0 a 60 ppm CO)
+// Barra de nivel porcentual (0 a 50 ppm CO, mínimo 8% cuando safeCo > 0)
 const coPercent = computed(() => {
-  const clamped = Math.max(0, Math.min(60, safeCo.value))
-  return Math.round((clamped / 60) * 100)
+  if (safeCo.value <= 0) return 0
+  const clamped = Math.max(0, Math.min(50, safeCo.value))
+  return Math.max(8, Math.round((clamped / 50) * 100))
 })
 </script>
 
@@ -75,7 +76,7 @@ const coPercent = computed(() => {
     <!-- Valor Principal y Medidor CO -->
     <div class="space-y-1 font-mono">
       <div class="flex items-baseline justify-between">
-        <span class="text-[9px] text-slate-400">GAS MONÓXIDO (CO)</span>
+        <span class="text-[9px] text-slate-400">GAS MONÓXIDO (CO) • {{ coPercent }}%</span>
         <div class="flex items-baseline gap-1">
           <span class="text-xl sm:text-2xl font-black tracking-tight leading-none" :class="coStatus.color">
             {{ safeCo.toFixed(1) }}
@@ -86,11 +87,11 @@ const coPercent = computed(() => {
 
       <!-- Barra de Seguridad CO -->
       <div class="space-y-0.5">
-        <div class="h-1.5 w-full bg-slate-950 rounded-full border border-cyan-500/30 overflow-hidden p-0.5 relative">
+        <div class="h-2.5 w-full bg-slate-950/90 rounded-full border border-cyan-500/35 overflow-hidden relative shadow-inner">
           <div
             class="h-full rounded-full transition-all duration-500"
             :class="coStatus.bar"
-            :style="{ width: `${Math.max(4, coPercent)}%` }"
+            :style="{ width: `${coPercent}%` }"
           />
         </div>
         <div class="flex justify-between text-[7.5px] font-mono text-slate-500">

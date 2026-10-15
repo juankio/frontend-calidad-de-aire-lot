@@ -71,9 +71,10 @@ const comfortIndex = computed(() => {
           <span class="text-[11px] sm:text-xs font-bold text-amber-300">{{ safeTemp.toFixed(1) }}°C</span>
         </div>
         <div class="space-y-0.5">
-          <div class="h-1.5 w-full bg-slate-900 rounded-full border border-cyan-500/30 overflow-hidden p-0.5">
+          <div class="h-2.5 w-full bg-slate-950/90 rounded-full border border-cyan-500/35 overflow-hidden relative shadow-inner">
             <div
-              class="h-full rounded-full bg-gradient-to-r from-cyan-400 to-amber-400 transition-all duration-500"
+              class="h-full rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(34,211,238,0.6)]"
+              :class="safeTemp > 29 ? 'bg-gradient-to-r from-amber-400 to-orange-400' : 'bg-gradient-to-r from-cyan-400 to-emerald-400'"
               :style="{ width: `${tempPercent}%` }"
             />
           </div>
@@ -94,9 +95,9 @@ const comfortIndex = computed(() => {
           <span class="text-[11px] sm:text-xs font-bold text-cyan-300">{{ safeHum.toFixed(0) }}% HR</span>
         </div>
         <div class="space-y-0.5">
-          <div class="h-1.5 w-full bg-slate-900 rounded-full border border-cyan-500/30 overflow-hidden p-0.5">
+          <div class="h-2.5 w-full bg-slate-950/90 rounded-full border border-cyan-500/35 overflow-hidden relative shadow-inner">
             <div
-              class="h-full rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 transition-all duration-500"
+              class="h-full rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 transition-all duration-500 shadow-[0_0_10px_rgba(34,211,238,0.6)]"
               :style="{ width: `${humPercent}%` }"
             />
           </div>

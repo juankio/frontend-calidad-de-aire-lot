@@ -1,6 +1,6 @@
 import { drawStar } from './eyes'
 import { sharedState } from './state'
-import type { FaceMetrics, Gc9a01Emotion } from './types'
+import type { EmotionTheme, FaceMetrics, Gc9a01Emotion } from './types'
 
 const VOMIT_SPLATTERS: ReadonlyArray<{ x: number; y: number; r: number; c: string }> = [
   { x: 64, y: 82, r: 16, c: 'rgba(132, 204, 22, 0.85)' },
@@ -94,13 +94,13 @@ export function drawBubblegumPop(ctx: CanvasRenderingContext2D, mouthX: number, 
   }
 }
 
-export function drawSnotBubble(ctx: CanvasRenderingContext2D, centerY: number): void {
+export function drawSnotBubble(ctx: CanvasRenderingContext2D, centerY: number, theme?: EmotionTheme): void {
   const bubbleR = 7 + (Math.sin(sharedState.breathPhase) + 1) * 5.5
   const bx = 142
   const by = centerY + 14
   ctx.save()
-  ctx.fillStyle = 'rgba(56, 189, 248, 0.42)'
-  ctx.strokeStyle = '#bae6fd'
+  ctx.fillStyle = theme?.blush ?? 'rgba(56, 189, 248, 0.35)'
+  ctx.strokeStyle = theme?.primary ?? '#bae6fd'
   ctx.lineWidth = 2
   ctx.beginPath()
   ctx.arc(bx, by, bubbleR, 0, Math.PI * 2)
@@ -114,12 +114,12 @@ export function drawSnotBubble(ctx: CanvasRenderingContext2D, centerY: number): 
 }
 
 export function drawSweatAndTears(
-  ctx: CanvasRenderingContext2D, emotion: Gc9a01Emotion, metrics: FaceMetrics, now: number
+  ctx: CanvasRenderingContext2D, emotion: Gc9a01Emotion, metrics: FaceMetrics, now: number, theme?: EmotionTheme
 ): void {
-  const { centerY, eyeXPos, eyeYPos } = metrics
+  const { centerY, eyeXPos, eyeYPos, mouthX, mouthY } = metrics
   if (['NAUSEA', 'HOT_PANTING', 'UPSIDE_DOWN', 'YAWN', 'LAUGHING'].includes(emotion)) {
     ctx.save()
-    ctx.fillStyle = emotion === 'NAUSEA' ? '#a3e635' : '#38bdf8'
+    ctx.fillStyle = theme?.primary ?? '#38bdf8'
     const slide = ((now * 0.04) % 16) * (emotion === 'UPSIDE_DOWN' ? -1 : 1)
     ctx.beginPath()
     ctx.arc(194, eyeYPos - 8 + slide, 4.5, 0, Math.PI * 2)
@@ -133,14 +133,14 @@ export function drawSweatAndTears(
   }
 
   if (emotion === 'NAUSEA') {
-    const puff = 15 + Math.sin(now * 0.014) * 2.5
+    const puff = 14 + Math.sin(now * 0.015) * 2.8
     ctx.save()
-    ctx.fillStyle = 'rgba(163, 230, 53, 0.75)'
-    ctx.strokeStyle = '#84cc16'
-    ctx.lineWidth = 2.5
-    for (const cx of [82, 158]) {
+    ctx.fillStyle = theme?.blush ?? 'rgba(16, 185, 129, 0.35)'
+    ctx.strokeStyle = theme?.primary ?? '#10b981'
+    ctx.lineWidth = 3
+    for (const cx of [mouthX - 24, mouthX + 24]) {
       ctx.beginPath()
-      ctx.arc(cx, centerY + 34, puff, 0, Math.PI * 2)
+      ctx.arc(cx, mouthY - 2, puff, 0, Math.PI * 2)
       ctx.fill()
       ctx.stroke()
     }
@@ -149,7 +149,8 @@ export function drawSweatAndTears(
 
   if (emotion === 'CRYING') {
     ctx.save()
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.82)'
+    ctx.fillStyle = theme?.primary ?? 'rgba(56, 189, 248, 0.82)'
+    ctx.globalAlpha = 0.75
     for (let i = 0; i < 2; i++) {
       const wave = Math.sin(now * 0.015 + i) * 3
       ctx.beginPath()
@@ -161,12 +162,13 @@ export function drawSweatAndTears(
 }
 
 export function renderBasicOverlays(
-  ctx: CanvasRenderingContext2D, emotion: Gc9a01Emotion, metrics: FaceMetrics, now: number
+  ctx: CanvasRenderingContext2D, emotion: Gc9a01Emotion, metrics: FaceMetrics, now: number, theme?: EmotionTheme
 ): void {
-  if (emotion === 'BABY_SLEEP') drawSnotBubble(ctx, metrics.centerY)
+  if (emotion === 'BABY_SLEEP') drawSnotBubble(ctx, metrics.centerY, theme)
   if ((emotion === 'WARNING_PREDICTIVE' || emotion === 'SNEEZE') && Math.abs(sharedState.coughOffset) > 1.2) {
     ctx.save()
-    ctx.fillStyle = emotion === 'SNEEZE' ? 'rgba(186, 230, 253, 0.75)' : 'rgba(251, 191, 36, 0.55)'
+    ctx.fillStyle = theme?.primary ?? '#10b981'
+    ctx.globalAlpha = 0.72
     for (let p = 0; p < 4; p++) {
       ctx.beginPath()
       ctx.arc(metrics.mouthX + (p - 1.5) * 14, metrics.mouthY + 14 + ((now * 0.08 + p * 7) % 18), 5 + (p % 2) * 2, 0, Math.PI * 2)

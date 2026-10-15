@@ -6,15 +6,13 @@ import {
 } from './state'
 
 const EMOTION_ALIASES: Record<string, Gc9a01Emotion> = {
-  TILT_LEFT: 'WALL_LEFT',
-  TILT_RIGHT: 'WALL_RIGHT',
-  WHISTLING: 'WHISTLE',
-  SNEEZING: 'SNEEZE',
-  YAWNING: 'YAWN',
-  RECOVERING: 'RECOVERY',
-  SLEEP: 'SLEEPING',
-  ALERT: 'WARNING_PREDICTIVE',
-  ERROR: 'CRITICAL'
+  TILT_LEFT: 'WALL_LEFT', TILT_RIGHT: 'WALL_RIGHT', WHISTLING: 'WHISTLE', SNEEZING: 'SNEEZE',
+  YAWNING: 'YAWN', RECOVERING: 'RECOVERY', SLEEP: 'SLEEPING', ALERT: 'WARNING_PREDICTIVE', ERROR: 'CRITICAL'
+}
+
+export function compensateChassisTemperature(rawTemp: number, isHardware = true): number {
+  if (!isHardware || rawTemp <= 31.5) return Number(rawTemp.toFixed(1))
+  return Number((25.2 + (rawTemp - 31.5) * 0.22).toFixed(1))
 }
 
 export function parseRiskEmotion(raw: string): Gc9a01Emotion {
@@ -68,7 +66,7 @@ export function applyBackendSample(sampleInput: RawTelemetryPayload, markHardwar
   if (coPpm !== undefined) telemetry.value.co_ppm = Number(coPpm)
 
   const temp = sample.temperature ?? s?.temperature
-  if (temp !== undefined) telemetry.value.temperature = Number(temp)
+  if (temp !== undefined) telemetry.value.temperature = compensateChassisTemperature(Number(temp), !isSim)
 
   const hum = sample.humidity ?? s?.humidity
   if (hum !== undefined) telemetry.value.humidity = Number(hum)

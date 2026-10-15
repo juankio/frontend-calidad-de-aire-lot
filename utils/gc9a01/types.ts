@@ -85,6 +85,8 @@ export const GC9A01_EMOTION_CATALOG: ReadonlyArray<Gc9a01EmotionMeta> = [
 
 export interface Gc9a01RenderParams {
   ppm: number
+  coPpm?: number
+  riskStatus?: string
   temperature: number
   humidity: number
   emotion: Gc9a01Emotion | string

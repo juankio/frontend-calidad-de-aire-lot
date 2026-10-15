@@ -99,20 +99,20 @@ export function triggerGyroShake() {
   const startMs = Date.now()
   const elapsedSinceLast = startMs - runtimeState.lastManualShakeAt
 
-  if (shakeComboCount.value === 1 && elapsedSinceLast <= 4000) shakeComboCount.value = 2
-  else if (shakeComboCount.value >= 2 && elapsedSinceLast <= 5000) shakeComboCount.value += 1
+  if (shakeComboCount.value === 1 && elapsedSinceLast <= 4500) shakeComboCount.value = 2
+  else if (shakeComboCount.value >= 2 && elapsedSinceLast <= 5500) shakeComboCount.value = 3
   else shakeComboCount.value = 1
   runtimeState.lastManualShakeAt = startMs
 
   const stage = shakeComboCount.value
-  const durationMs = stage >= 3 ? 7200 : 3500
+  const durationMs = stage >= 3 ? 6800 : 3400
   runtimeState.manualGyroLockUntil = startMs + durationMs
 
   const initialStageEmotion = stage === 1 ? 'DIZZY' : stage === 2 ? 'NAUSEA' : 'VOMIT'
   Object.assign(telemetry.value, { view_mode: 'FACE', is_shaking: true, device_emotion: initialStageEmotion })
   sendRemoteEmotionCommand(initialStageEmotion, 'FACE')
 
-  let wiperCommandSent = false
+  let wiperSent = false
   let tick = 0
   runtimeState.shakeTimer = setInterval(() => {
     tick++
@@ -120,16 +120,16 @@ export function triggerGyroShake() {
     if (elapsed >= durationMs) {
       clearShakeTimer()
       if (stage >= 3) shakeComboCount.value = 0
-      resetPoseToIdle(stage >= 3 ? 'RECOVERY' : undefined)
+      resetPoseToIdle()
       return
     }
-    if (stage >= 3 && elapsed >= 3800) {
-      if (!wiperCommandSent) { wiperCommandSent = true; sendRemoteEmotionCommand('WIPER', 'FACE') }
+    if (stage >= 3 && elapsed >= 3600) {
+      if (!wiperSent) { wiperSent = true; sendRemoteEmotionCommand('WIPER', 'FACE') }
       resetPoseToIdle('WIPER')
-      telemetry.value.eye_x = Number((Math.sin((elapsed - 3800) * 0.0065) * 4.5).toFixed(2))
+      telemetry.value.eye_x = Number((Math.sin((elapsed - 3600) * 0.0065) * 4.5).toFixed(2))
       return
     }
-    const decay = Math.max(0.2, 1 - elapsed / (stage >= 3 ? 3800 : durationMs))
+    const decay = Math.max(0.2, 1 - elapsed / (stage >= 3 ? 3600 : durationMs))
     const amp = stage >= 3 ? 8.5 : stage === 2 ? 7.8 : 7.2
     applyShakeFrame(Math.sin(tick * 1.9) * amp * decay, Math.cos(tick * 2.3) * (amp * 0.88) * decay, 3.5, 3.5)
     telemetry.value.is_shaking = true
@@ -139,29 +139,30 @@ export function triggerGyroShake() {
 
 export function triggerBabyRocking() {
   clearShakeTimer()
-  const durationMs = 9000
+  const durationMs = 8500
   const startMs = Date.now()
   runtimeState.manualGyroLockUntil = startMs + durationMs
   telemetry.value.view_mode = 'FACE'
   resetPoseToIdle('BABY_ROCKING')
   sendRemoteEmotionCommand('BABY_ROCKING', 'FACE')
 
-  let sleepCommandSent = false
+  let sleepSent = false
   runtimeState.shakeTimer = setInterval(() => {
     const elapsed = Date.now() - startMs
     if (elapsed >= durationMs) { clearShakeTimer(); resetPoseToIdle(); return }
-    if (elapsed < 3500) {
+    if (elapsed < 3400) {
       Object.assign(telemetry.value, { device_emotion: 'BABY_ROCKING', is_shaking: false, eye_y: 0 })
       applyRockingFrame(elapsed)
       telemetry.value.pitch = Number((Math.cos(elapsed * 0.0028) * 2.5).toFixed(1))
     } else {
-      if (!sleepCommandSent) { sleepCommandSent = true; sendRemoteEmotionCommand('BABY_SLEEP', 'FACE') }
+      if (!sleepSent) { sleepSent = true; sendRemoteEmotionCommand('BABY_SLEEP', 'FACE') }
       resetPoseToIdle('BABY_SLEEP')
     }
   }, 60)
 }
 
-export function triggerCustomEmotion(emotion: string, durationMs = 5000) {
+export function triggerCustomEmotion(emotion: string, durationMs = 4800) {
+  if (emotion === 'BABY_ROCKING') { triggerBabyRocking(); return }
   clearShakeTimer()
   const targetEmotion = parseRiskEmotion(emotion)
   const startMs = Date.now()
@@ -170,10 +171,7 @@ export function triggerCustomEmotion(emotion: string, durationMs = 5000) {
 
   Object.assign(telemetry.value, { view_mode: 'FACE', is_shaking: shouldShake, device_emotion: targetEmotion })
   sendRemoteEmotionCommand(targetEmotion, 'FACE')
-
   if (targetEmotion === 'UPSIDE_DOWN') { telemetry.value.roll = 180; telemetry.value.pitch = 0 }
-  else if (targetEmotion === 'WALL_LEFT') { telemetry.value.roll = -75; telemetry.value.pitch = 0 }
-  else if (targetEmotion === 'WALL_RIGHT') { telemetry.value.roll = 75; telemetry.value.pitch = 0 }
   else if (!shouldShake) resetPoseToIdle(targetEmotion)
 
   let tick = 0
@@ -184,6 +182,5 @@ export function triggerCustomEmotion(emotion: string, durationMs = 5000) {
     telemetry.value.device_emotion = targetEmotion
     telemetry.value.is_shaking = shouldShake
     if (shouldShake) applyShakeFrame(Math.sin(tick * 1.8) * 5.5, Math.cos(tick * 2.1) * 4.5, 2.5, 2.2, 90)
-    else if (targetEmotion === 'BABY_ROCKING') applyRockingFrame(elapsed)
   }, 65)
 }

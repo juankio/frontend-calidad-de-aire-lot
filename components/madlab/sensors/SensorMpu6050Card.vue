@@ -141,7 +141,7 @@ function onPointerUp() {
           <button type="button" @click="toggleUpsideDownTest" class="w-full py-1 px-1 rounded-lg border text-[7.5px] font-mono font-bold flex items-center justify-center gap-0.5 transition cursor-pointer active:scale-95" :class="Math.abs(rollVal) > 135 ? 'bg-amber-500/25 border-amber-400/80 text-amber-200' : 'bg-slate-950/80 hover:bg-slate-900 border-amber-500/40 text-amber-300'" title="Probar rotación 180° De Cabeza">
             <span>180°</span>
           </button>
-          <button type="button" @click="emit('shake')" class="w-full py-1 px-1 rounded-lg bg-fuchsia-950/60 hover:bg-fuchsia-900/70 border border-fuchsia-500/40 text-fuchsia-300 text-[7px] font-mono font-bold flex items-center justify-center gap-0.5 transition cursor-pointer active:scale-95" title="Sacudir repetidamente: 1x Mareo -> 2x Náusea -> 3x Vómito + Limpiaparabrisas">
+          <button type="button" @click="emit('shake')" class="w-full py-1 px-1 rounded-lg bg-fuchsia-950/60 hover:bg-fuchsia-900/70 border border-fuchsia-500/40 text-fuchsia-300 text-[7px] font-mono font-bold flex items-center justify-center gap-0.5 transition cursor-pointer active:scale-95" title="Sacudida progresiva: 1s Mareo -> 2s Náusea -> 4s Vómito + Limpiaparabrisas">
             <Vibrate class="w-2.5 h-2.5 shrink-0" /><span class="truncate">{{ shakeButtonLabel }}</span>
           </button>
         </div>

@@ -30,9 +30,7 @@ export const DEFAULT_SESSIONS: SessionData[] = [
 ]
 
 export const LOCAL_IDLE_CAROUSEL: ReadonlyArray<Gc9a01Emotion> = [
-  'OPTIMAL', 'BUBBLEGUM', 'GLASSES_COOL', 'RAMEN', 'COFFEE',
-  'MUSIC_VIBE', 'BUTTERFLY', 'WINK', 'LOVE', 'DERP',
-  'BABY_SLEEP', 'DETECTIVE', 'WHISTLE', 'ZEN', 'LAUGHING'
+  'WINK', 'LAUGHING', 'SUSPICIOUS', 'YAWN', 'SNEEZE'
 ]
 
 export const sessions = ref<SessionData[]>(DEFAULT_SESSIONS)

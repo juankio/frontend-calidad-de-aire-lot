@@ -1,8 +1,8 @@
 export function getMpuShakeButtonLabel(emotion: string): string {
-  if (emotion === 'DIZZY') return 'Sacudir (1/3 Mareo)'
-  if (emotion === 'NAUSEA') return 'Sacudir (2/3 Náusea)'
-  if (emotion === 'VOMIT' || emotion === 'WIPER') return 'Sacudir (3/3 ¡Vómito!)'
-  return 'Sacudir (Mareo→Vómito)'
+  if (emotion === 'DIZZY') return '2s (Náusea)'
+  if (emotion === 'NAUSEA') return '4s (¡Vómito!)'
+  if (emotion === 'VOMIT' || emotion === 'WIPER') return '¡Vómito!'
+  return '1s (Mareo)'
 }
 
 export function getMpuOrientationLabel(emotion: string, isDizzyOrShaking: boolean, rollVal: number): string {

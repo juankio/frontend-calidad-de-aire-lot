@@ -39,7 +39,7 @@ export function drawNormalEye(
   ctx.beginPath(); ctx.ellipse(ex, ey, rx, Math.max(2.5, ry), 0, 0, Math.PI * 2); ctx.fill()
   ctx.restore()
 
-  if (sharedState.blinkState > 0.32) {
+  if (sharedState.blinkState > 0.32 && ry > 6) {
     ctx.fillStyle = theme.pupil
     ctx.beginPath(); ctx.arc(pupilX, pupilY, pupilR, 0, Math.PI * 2); ctx.fill()
     ctx.fillStyle = '#ffffff'
@@ -49,25 +49,36 @@ export function drawNormalEye(
 }
 
 export function drawSpiralEye(
-  ctx: CanvasRenderingContext2D, ex: number, ey: number, rx: number, ry: number, side: 0 | 1, now: number, theme: EmotionTheme
+  ctx: CanvasRenderingContext2D, ex: number, ey: number, rx: number, _ry: number, side: 0 | 1, now: number, theme: EmotionTheme
 ): void {
   ctx.save()
-  ctx.fillStyle = '#eab308'; ctx.shadowColor = '#eab308'; ctx.shadowBlur = 10
-  ctx.beginPath(); ctx.ellipse(ex, ey, rx, Math.max(6, ry), 0, 0, Math.PI * 2); ctx.fill()
-  ctx.restore()
-
-  const angle = now * 0.013 * (side === 0 ? 1 : -1) + side * Math.PI
-  const px = ex + Math.cos(angle) * 7
-  const py = ey + Math.sin(angle) * 7
   ctx.fillStyle = theme.pupil
-  ctx.beginPath(); ctx.arc(px, py, 10, 0, Math.PI * 2); ctx.fill()
-  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.8
-  for (const r of [6.5, 3]) { ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.stroke() }
+  ctx.strokeStyle = theme.primary
+  ctx.lineWidth = 3.2
+  ctx.shadowColor = theme.primary
+  ctx.shadowBlur = 10
+  ctx.beginPath(); ctx.arc(ex, ey, rx, 0, Math.PI * 2); ctx.fill(); ctx.stroke()
+
+  const spin = now * 0.014 * (side === 0 ? 1 : -1)
+  ctx.beginPath()
+  ctx.lineCap = 'round'
+  for (let step = 0; step <= 38; step++) {
+    const t = step / 38
+    const angle = spin + t * Math.PI * 4.8 * (side === 0 ? 1 : -1)
+    const radius = t * (rx - 4)
+    const sx = ex + Math.cos(angle) * radius
+    const sy = ey + Math.sin(angle) * radius
+    if (step === 0) ctx.moveTo(sx, sy)
+    else ctx.lineTo(sx, sy)
+  }
+  ctx.stroke()
+  ctx.restore()
 }
 
-export function drawCrossEye(ctx: CanvasRenderingContext2D, ex: number, ey: number): void {
+export function drawCrossEye(ctx: CanvasRenderingContext2D, ex: number, ey: number, theme?: EmotionTheme): void {
+  const color = theme?.primary ?? '#f43f5e'
   ctx.save()
-  ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.shadowColor = '#f43f5e'; ctx.shadowBlur = 10
+  ctx.strokeStyle = color; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.shadowColor = color; ctx.shadowBlur = 10
   ctx.beginPath()
   ctx.moveTo(ex - 14, ey - 14); ctx.lineTo(ex + 14, ey + 14)
   ctx.moveTo(ex + 14, ey - 14); ctx.lineTo(ex - 14, ey + 14)
@@ -88,8 +99,8 @@ export function drawSleepArcEye(ctx: CanvasRenderingContext2D, ex: number, ey: n
   ctx.restore()
 }
 
-export function drawHeartEye(ctx: CanvasRenderingContext2D, ex: number, ey: number, side: 0 | 1, now: number): void {
-  drawHeart(ctx, ex, ey + 2, 26 * (1 + Math.sin(now * 0.012 + side * 0.4) * 0.15), '#f43f5e')
+export function drawHeartEye(ctx: CanvasRenderingContext2D, ex: number, ey: number, side: 0 | 1, now: number, theme?: EmotionTheme): void {
+  drawHeart(ctx, ex, ey + 2, 26 * (1 + Math.sin(now * 0.012 + side * 0.4) * 0.15), theme?.primary ?? '#f43f5e')
 }
 
 export function drawStarEye(ctx: CanvasRenderingContext2D, ex: number, ey: number, side: 0 | 1, now: number, theme: EmotionTheme): void {
@@ -106,23 +117,11 @@ function drawChevronEye(ctx: CanvasRenderingContext2D, ex: number, ey: number, s
   ctx.stroke(); ctx.restore()
 }
 
-export function drawSunglasses(ctx: CanvasRenderingContext2D, eyeYPos: number, now: number): void {
+export function drawSunglasses(ctx: CanvasRenderingContext2D, eyeYPos: number, _now: number): void {
   ctx.save()
-  ctx.fillStyle = '#090d16'; ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 3.5
-  ctx.beginPath()
-  ctx.roundRect(42, eyeYPos - 20, 66, 38, 8); ctx.roundRect(132, eyeYPos - 20, 66, 38, 8)
-  ctx.fill(); ctx.stroke()
-  ctx.beginPath()
-  ctx.moveTo(108, eyeYPos - 6); ctx.lineTo(132, eyeYPos - 6)
-  ctx.moveTo(22, eyeYPos - 10); ctx.lineTo(42, eyeYPos - 8)
-  ctx.moveTo(198, eyeYPos - 8); ctx.lineTo(218, eyeYPos - 10)
-  ctx.stroke()
-  const g = (((now * 0.08) % 90) - 20) * 0.4
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.78)'; ctx.lineWidth = 4
-  ctx.beginPath()
-  ctx.moveTo(48 + g, eyeYPos - 14); ctx.lineTo(62 + g, eyeYPos + 12)
-  ctx.moveTo(138 + g, eyeYPos - 14); ctx.lineTo(152 + g, eyeYPos + 12)
-  ctx.stroke(); ctx.restore()
+  ctx.fillStyle = '#090d16'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 3
+  ctx.beginPath(); ctx.roundRect(42, eyeYPos - 18, 64, 34, 8); ctx.roundRect(134, eyeYPos - 18, 64, 34, 8); ctx.fill(); ctx.stroke()
+  ctx.restore()
 }
 
 export function drawEyebrows(ctx: CanvasRenderingContext2D, ex: number, ey: number, side: 0 | 1, theme: EmotionTheme, now: number): void {
@@ -147,11 +146,15 @@ export function renderEyes(ctx: CanvasRenderingContext2D, emotion: Gc9a01Emotion
     const side = i as 0 | 1
     const ex = eyeXPos[i]
     drawEyebrows(ctx, ex, eyeYPos, side, theme, now)
-    if (theme.eyeMode === 'cross') drawCrossEye(ctx, ex, eyeYPos)
+    if (emotion === 'BABY_ROCKING') {
+      const drowsyRy = 4 + (Math.sin(now * 0.0032) + 1) * 5.5
+      drawNormalEye(ctx, ex, eyeYPos + 3, squashRx * 0.92, drowsyRy, ex + sharedState.currentEyeX * 0.3, eyeYPos + 5, 7, theme)
+      drawSleepArcEye(ctx, ex, eyeYPos - 2, theme)
+    } else if (theme.eyeMode === 'cross') drawCrossEye(ctx, ex, eyeYPos, theme)
     else if (theme.eyeMode === 'sleepArc') drawSleepArcEye(ctx, ex, eyeYPos, theme)
     else if (theme.eyeMode === 'happyArc') drawHappyArcEye(ctx, ex, eyeYPos, theme)
     else if (theme.eyeMode === 'squint' || (theme.eyeMode === 'wink' && side === 1)) drawChevronEye(ctx, ex, eyeYPos, side, theme)
-    else if (theme.eyeMode === 'heart') drawHeartEye(ctx, ex, eyeYPos, side, now)
+    else if (theme.eyeMode === 'heart') drawHeartEye(ctx, ex, eyeYPos, side, now, theme)
     else if (theme.eyeMode === 'star') drawStarEye(ctx, ex, eyeYPos, side, now, theme)
     else if (theme.eyeMode === 'spiral') drawSpiralEye(ctx, ex, eyeYPos, squashRx, squashRy, side, now, theme)
     else if (theme.eyeMode === 'suspicious') {
@@ -163,9 +166,8 @@ export function renderEyes(ctx: CanvasRenderingContext2D, emotion: Gc9a01Emotion
       const ry = isWall ? 35 * sharedState.blinkState : theme.eyeMode === 'wide' ? 35 : theme.eyeMode === 'detective' ? (side === 0 ? 14 : 34) * sharedState.blinkState : squashRy
       const dx = theme.eyeMode === 'derp' ? (side === 0 ? 9 : -9) : sharedState.currentEyeX
       const dy = theme.eyeMode === 'derp' ? (side === 0 ? -4 : 4) : sharedState.currentEyeY
-      const pr = theme.eyeMode === 'wide' ? 4.5 : theme.eyeMode === 'upsideDown' && side === 1 ? 7 : 11
+      const pr = theme.eyeMode === 'wide' ? 5 : theme.eyeMode === 'upsideDown' && side === 1 ? 7 : 11
       drawNormalEye(ctx, ex, eyeYPos, rx, ry, ex + dx, eyeYPos + dy, pr, theme)
     }
   }
-  if (emotion === 'GLASSES_COOL') drawSunglasses(ctx, eyeYPos, now)
 }

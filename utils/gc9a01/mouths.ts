@@ -21,7 +21,7 @@ function drawTongueMouth(ctx: CanvasRenderingContext2D, mx: number, my: number, 
 }
 
 function drawLaughMouth(ctx: CanvasRenderingContext2D, mx: number, my: number, theme: EmotionTheme): void {
-  ctx.fillStyle = '#4c0519'
+  ctx.fillStyle = theme.pupil
   ctx.strokeStyle = theme.primary
   ctx.lineWidth = 3.5
   ctx.beginPath()
@@ -51,7 +51,7 @@ function drawWhistleMouth(ctx: CanvasRenderingContext2D, mx: number, my: number)
 }
 
 function drawOpenOvalMouth(ctx: CanvasRenderingContext2D, mx: number, my: number, ry: number, theme: EmotionTheme): void {
-  ctx.fillStyle = '#1e1b4b'
+  ctx.fillStyle = theme.pupil
   ctx.strokeStyle = theme.primary
   ctx.lineWidth = 3.5
   ctx.beginPath()
@@ -95,29 +95,20 @@ function drawWavyMouth(ctx: CanvasRenderingContext2D, mx: number, my: number): v
   ctx.stroke()
 }
 
-function drawPacifierMouth(ctx: CanvasRenderingContext2D, mx: number, my: number, now: number): void {
+function drawPacifierMouth(ctx: CanvasRenderingContext2D, mx: number, my: number, theme: EmotionTheme, now: number): void {
   const bob = Math.sin(now * 0.012) * 2
-  ctx.fillStyle = '#f472b6'
-  ctx.strokeStyle = '#fbcfe8'
+  ctx.fillStyle = theme.pupil
+  ctx.strokeStyle = theme.primary
   ctx.lineWidth = 2.5
   ctx.beginPath()
-  ctx.ellipse(mx, my + bob, 16, 11, 0, 0, Math.PI * 2)
+  ctx.ellipse(mx, my + bob, 14, 9, 0, 0, Math.PI * 2)
   ctx.fill()
-  ctx.stroke()
-  ctx.fillStyle = '#38bdf8'
-  ctx.beginPath()
-  ctx.arc(mx, my + bob, 6, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.strokeStyle = '#fde047'
-  ctx.lineWidth = 3
-  ctx.beginPath()
-  ctx.arc(mx, my + 8 + bob, 9, 0.1 * Math.PI, 0.9 * Math.PI)
   ctx.stroke()
 }
 
-function drawGasMaskMouth(ctx: CanvasRenderingContext2D, mx: number, my: number): void {
+function drawGasMaskMouth(ctx: CanvasRenderingContext2D, mx: number, my: number, theme: EmotionTheme): void {
   ctx.fillStyle = '#1e293b'
-  ctx.strokeStyle = '#facc15'
+  ctx.strokeStyle = theme.primary
   ctx.lineWidth = 2.5
   ctx.beginPath()
   ctx.roundRect(mx - 28, my - 18, 56, 38, 12)
@@ -155,9 +146,9 @@ export function renderMouth(
     case 'yawn': drawOpenOvalMouth(ctx, mouthX, mouthY, 18, theme); break
     case 'vomit': drawVomitMouth(ctx, mouthX, mouthY, now); break
     case 'wavy': drawWavyMouth(ctx, mouthX, mouthY); break
-    case 'pacifier': drawPacifierMouth(ctx, mouthX, mouthY, now); break
+    case 'pacifier': drawPacifierMouth(ctx, mouthX, mouthY, theme, now); break
     case 'bubblegum': drawBubblegumPop(ctx, mouthX, mouthY, now); break
-    case 'gasMask': drawGasMaskMouth(ctx, mouthX, mouthY); break
+    case 'gasMask': drawGasMaskMouth(ctx, mouthX, mouthY, theme); break
     default:
       ctx.lineWidth = 3.5
       ctx.beginPath()

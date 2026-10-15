@@ -37,10 +37,11 @@ const EMOTION_LABELS_ES: Record<string, string> = {
 }
 
 const QUICK_EMOTES = [
-  { id: 'VOMIT', label: '🤮 Vomitar' }, { id: 'WIPER', label: '🧽 Limpiar' }, { id: 'BABY_SLEEP', label: '😪 Moco Zzz' },
-  { id: 'BUBBLEGUM', label: '🍬 Chicle' }, { id: 'GLASSES_COOL', label: '😎 Gafas' }, { id: 'RAMEN', label: '🍜 Ramen' },
-  { id: 'COFFEE', label: '☕ Café' }, { id: 'MUSIC_VIBE', label: '🎧 Música' }, { id: 'BUTTERFLY', label: '🦋 Mariposa' },
-  { id: 'DERP', label: '🤪 Bizco' }, { id: 'LOVE', label: '❤️ Amor' }, { id: 'WINK', label: '😉 Guiño' }, { id: 'UPSIDE_DOWN', label: '🙃 180°' }
+  { id: 'OPTIMAL', label: '🙂 Normal' }, { id: 'DIZZY', label: '🌀 Mareo (1s)' }, { id: 'NAUSEA', label: '🤢 Náusea (2s)' },
+  { id: 'VOMIT', label: '🤮 Vomitar (4s)' }, { id: 'WIPER', label: '🧽 Limpiar' }, { id: 'BABY_ROCKING', label: '🍼 Mecer' },
+  { id: 'BABY_SLEEP', label: '💤 Dormir' }, { id: 'STARTLED', label: '⚡ Susto' }, { id: 'WINK', label: '😉 Guiño' },
+  { id: 'LAUGHING', label: '😄 Feliz' }, { id: 'SUSPICIOUS', label: '🤨 Dudar' }, { id: 'YAWN', label: '🥱 Bostezo' },
+  { id: 'SNEEZE', label: '🤧 Tos/Humo' }
 ] as const
 
 const chamberStage = ref<'DUAL' | 'XRAY' | '3D_FULL'>('DUAL')
@@ -155,13 +156,13 @@ const energyTheme = computed(() => {
 
     <div class="bg-slate-950/90 border border-cyan-500/25 rounded-lg p-1 shrink-0 font-mono flex flex-col gap-1">
       <div class="flex items-center justify-between gap-1 text-[7.5px]">
-        <span class="text-cyan-300 font-bold tracking-wider uppercase">TAMAGOTCHI EMOTES (32 ANIMACIONES)</span>
-        <div class="flex items-center gap-1">
+        <span class="text-cyan-300 font-bold tracking-wider uppercase truncate">GESTOS FACIALES &amp; FÍSICA IMU (COLOR POR NIVEL DE AIRE)</span>
+        <div class="flex items-center gap-1 shrink-0">
           <button type="button" @click="emit('shakeDevice')" class="px-2 py-0.5 rounded bg-fuchsia-950/80 hover:bg-fuchsia-900 border border-fuchsia-500/60 text-fuchsia-200 font-bold transition cursor-pointer active:scale-95 flex items-center gap-1">
-            <Vibrate class="w-2.5 h-2.5" /><span>🌀 Sacudir (Mareo → Vómito → Limpiar)</span>
+            <Vibrate class="w-2.5 h-2.5" /><span>{{ ['DIZZY', 'NAUSEA'].includes(activeEmotionKey) ? '🤮 Agitar 4s (Vómito)' : '🌀 Agitar 1s (Mareo)' }}</span>
           </button>
           <button type="button" @click="emit('rockBaby')" class="px-2 py-0.5 rounded bg-sky-950/80 hover:bg-sky-900 border border-sky-500/60 text-sky-200 font-bold transition cursor-pointer active:scale-95">
-            <span>🍼 Mecer Bebé (Dormir)</span>
+            <span>🍼 Mecer (Dormir)</span>
           </button>
         </div>
       </div>

@@ -20,6 +20,7 @@ export function stepMechaFrame(ctx: MechaSceneContext): void {
   const activeEmotion = resolveActiveEmotion(opts)
   const renderParams = {
     ppm: opts.ppm ?? 420,
+    riskStatus: opts.riskStatus ?? 'OPTIMAL',
     temperature: opts.temperature ?? 24.5,
     humidity: opts.humidity ?? 48,
     emotion: activeEmotion,

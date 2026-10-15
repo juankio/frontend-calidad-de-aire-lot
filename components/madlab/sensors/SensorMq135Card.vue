@@ -14,15 +14,33 @@ const voltage = computed(() => ((safeAdc.value * 3.3) / 4095).toFixed(2))
 const safeDelta = computed(() => Number(props.deltaPpm || 0))
 
 const riskLevel = computed(() => {
-  if (safePpm.value < 700) return { label: 'ÓPTIMO', color: 'text-cyan-300', bg: 'bg-cyan-950/60 border-cyan-500/40', bar: 'bg-cyan-400' }
-  if (safePpm.value <= 1000) return { label: 'MODERADO', color: 'text-amber-300', bg: 'bg-amber-950/60 border-amber-500/40', bar: 'bg-amber-400' }
-  return { label: 'CRÍTICO', color: 'text-rose-400', bg: 'bg-rose-950/60 border-rose-500/40', bar: 'bg-rose-500' }
+  if (safePpm.value < 700) {
+    return {
+      label: 'ÓPTIMO',
+      color: 'text-cyan-300',
+      bg: 'bg-cyan-950/60 border-cyan-500/40',
+      bar: 'bg-gradient-to-r from-cyan-500 to-teal-400 shadow-[0_0_10px_rgba(34,211,238,0.6)]'
+    }
+  }
+  if (safePpm.value <= 1000) {
+    return {
+      label: 'MODERADO',
+      color: 'text-amber-300',
+      bg: 'bg-amber-950/60 border-amber-500/40',
+      bar: 'bg-gradient-to-r from-amber-500 to-yellow-400 shadow-[0_0_10px_rgba(245,158,11,0.6)]'
+    }
+  }
+  return {
+    label: 'CRÍTICO',
+    color: 'text-rose-400',
+    bg: 'bg-rose-950/60 border-rose-500/40',
+    bar: 'bg-gradient-to-r from-rose-600 to-red-400 shadow-[0_0_10px_rgba(244,63,94,0.6)]'
+  }
 })
 
-// Porcentaje para barra de riesgo (400 a 2000 ppm)
+// Porcentaje para barra de riesgo (250 a 1200 ppm, mínimo 18% en aire limpio normal)
 const barPercent = computed(() => {
-  const clamped = Math.max(350, Math.min(2000, safePpm.value))
-  return Math.round(((clamped - 350) / (2000 - 350)) * 100)
+  return Math.max(18, Math.min(100, Math.round(((safePpm.value - 250) / (1200 - 250)) * 100)))
 })
 </script>
 
@@ -50,7 +68,7 @@ const barPercent = computed(() => {
     <!-- Valor Principal y Medidor de Barra -->
     <div class="space-y-1 font-mono">
       <div class="flex items-baseline justify-between">
-        <span class="text-[9px] text-slate-400">CONCENTRACIÓN AIRE</span>
+        <span class="text-[9px] text-slate-400">CONCENTRACIÓN AIRE ({{ barPercent }}%)</span>
         <div class="flex items-baseline gap-1">
           <span class="text-xl sm:text-2xl font-black tracking-tight leading-none" :class="riskLevel.color">
             {{ safePpm }}
@@ -61,7 +79,7 @@ const barPercent = computed(() => {
 
       <!-- Barra de Rangos de Riesgo -->
       <div class="space-y-0.5">
-        <div class="h-1.5 w-full bg-slate-950 rounded-full border border-cyan-500/30 overflow-hidden p-0.5 relative">
+        <div class="h-2.5 w-full bg-slate-950/90 rounded-full border border-cyan-500/35 overflow-hidden relative shadow-inner">
           <div
             class="h-full rounded-full transition-all duration-500"
             :class="riskLevel.bar"
