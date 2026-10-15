@@ -111,6 +111,8 @@ export function createTimeSeriesChartOptions(): ChartOptions<'line'> {
         border: { display: false }
       },
       y: {
+        suggestedMin: 380,
+        suggestedMax: 520,
         grid: { color: 'rgba(6, 182, 212, 0.08)' },
         ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 }, padding: 4 },
         border: { display: false }

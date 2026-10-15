@@ -1,5 +1,5 @@
 import { drawStar } from './eyes'
-import { sharedState } from './state'
+import { clamp, sharedState } from './state'
 import type { EmotionTheme, FaceMetrics, Gc9a01Emotion } from './types'
 
 const VOMIT_SPLATTERS: ReadonlyArray<{ x: number; y: number; r: number; c: string }> = [
@@ -148,14 +148,19 @@ export function drawSweatAndTears(
   }
 
   if (emotion === 'CRYING') {
+    const cryElapsed = now - sharedState.emotionEnteredMs
     ctx.save()
     ctx.fillStyle = theme?.primary ?? 'rgba(56, 189, 248, 0.82)'
-    ctx.globalAlpha = 0.75
+    ctx.globalAlpha = 0.78
     for (let i = 0; i < 2; i++) {
-      const wave = Math.sin(now * 0.015 + i) * 3
-      ctx.beginPath()
-      ctx.roundRect(eyeXPos[i] - 8 + wave * 0.3, eyeYPos + 12, 16, 78, 8)
-      ctx.fill()
+      if (cryElapsed < 700) {
+        const shimmer = Math.sin(now * 0.035 + i) * 1.5
+        ctx.beginPath(); ctx.ellipse(eyeXPos[i], eyeYPos + 11, 10 + shimmer, 4.5, 0, 0, Math.PI * 2); ctx.fill()
+      } else {
+        const wave = Math.sin(now * 0.015 + i) * 3
+        const len = 78 * clamp((cryElapsed - 700) / 550, 0.12, 1)
+        ctx.beginPath(); ctx.roundRect(eyeXPos[i] - 8 + wave * 0.3, eyeYPos + 12, 16, len, 8); ctx.fill()
+      }
     }
     ctx.restore()
   }
@@ -176,6 +181,6 @@ export function renderBasicOverlays(
     }
     ctx.restore()
   }
-  if (emotion === 'VOMIT') drawVomitSplatters(ctx)
+  if (emotion === 'VOMIT' && sharedState.transitionAlpha >= 0.85) drawVomitSplatters(ctx)
   else if (emotion === 'WIPER') drawWiperOverlay(ctx, now)
 }

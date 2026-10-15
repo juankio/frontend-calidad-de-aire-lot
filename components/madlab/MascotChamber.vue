@@ -38,10 +38,10 @@ const EMOTION_LABELS_ES: Record<string, string> = {
 
 const QUICK_EMOTES = [
   { id: 'OPTIMAL', label: '🙂 Normal' }, { id: 'DIZZY', label: '🌀 Mareo (1s)' }, { id: 'NAUSEA', label: '🤢 Náusea (2s)' },
-  { id: 'VOMIT', label: '🤮 Vomitar (4s)' }, { id: 'WIPER', label: '🧽 Limpiar' }, { id: 'BABY_ROCKING', label: '🍼 Mecer' },
-  { id: 'BABY_SLEEP', label: '💤 Dormir' }, { id: 'STARTLED', label: '⚡ Susto' }, { id: 'WINK', label: '😉 Guiño' },
+  { id: 'VOMIT', label: '🤮 Arcada+Vómito' }, { id: 'WIPER', label: '🧽 Limpiar' }, { id: 'BABY_ROCKING', label: '🍼 Mecer' },
+  { id: 'BABY_SLEEP', label: '💤 Bostezo+Dormir' }, { id: 'STARTLED', label: '⚡ Susto' }, { id: 'WINK', label: '😉 Guiño' },
   { id: 'LAUGHING', label: '😄 Feliz' }, { id: 'SUSPICIOUS', label: '🤨 Dudar' }, { id: 'YAWN', label: '🥱 Bostezo' },
-  { id: 'SNEEZE', label: '🤧 Tos/Humo' }
+  { id: 'SNEEZE', label: '🤧 Inhalar+Tos' }
 ] as const
 
 const chamberStage = ref<'DUAL' | 'XRAY' | '3D_FULL'>('DUAL')

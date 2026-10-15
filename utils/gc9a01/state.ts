@@ -13,6 +13,9 @@ const NO_BLINK_EMOTIONS: ReadonlyArray<Gc9a01Emotion> = [
 
 export const sharedState: SharedAnimState = {
   lastStepMs: 0,
+  lastEmotion: 'OPTIMAL',
+  emotionEnteredMs: 0,
+  transitionAlpha: 1.0,
   breathPhase: 0,
   breathOffset: 0,
   blinkState: 1.0,
@@ -66,6 +69,15 @@ export function stepSharedGc9a01Animation(params: Gc9a01RenderParams): void {
   sharedState.lastStepMs = now
 
   const emotion = normalizeGc9a01Emotion(params.emotion, params.isShaking)
+  if (emotion !== sharedState.lastEmotion) {
+    sharedState.lastEmotion = emotion
+    sharedState.emotionEnteredMs = now
+    sharedState.transitionAlpha = 0.0
+    if (sharedState.blinkStartMs < 0 && !NO_BLINK_EMOTIONS.includes(emotion)) sharedState.blinkStartMs = now
+  }
+  const rawT = clamp((now - sharedState.emotionEnteredMs) / 380, 0, 1)
+  sharedState.transitionAlpha = 1 - Math.pow(1 - rawT, 3)
+
   sharedState.breathPhase += 0.075
   sharedState.breathOffset = Math.sin(sharedState.breathPhase) * 3.0
 
@@ -121,7 +133,10 @@ export function stepSharedGc9a01Animation(params: Gc9a01RenderParams): void {
     sharedState.saccadeY = 0
   }
 
-  if (emotion === 'WARNING_PREDICTIVE' || emotion === 'SNEEZE') {
+  if (emotion === 'SNEEZE') {
+    const sneezePhase = (now - sharedState.emotionEnteredMs) % 2600
+    sharedState.coughOffset = sneezePhase >= 850 && sneezePhase <= 1650 ? Math.sin((sneezePhase - 850) * 0.055) * 6.5 : 0
+  } else if (emotion === 'WARNING_PREDICTIVE') {
     if (sharedState.nextCoughStartMs === 0) sharedState.nextCoughStartMs = now + 1600
     if (sharedState.coughStartMs < 0 && now >= sharedState.nextCoughStartMs) sharedState.coughStartMs = now
     if (sharedState.coughStartMs >= 0) {
@@ -130,7 +145,7 @@ export function stepSharedGc9a01Animation(params: Gc9a01RenderParams): void {
       else {
         sharedState.coughOffset = 0
         sharedState.coughStartMs = -1
-        sharedState.nextCoughStartMs = now + (emotion === 'SNEEZE' ? 2400 : 3600)
+        sharedState.nextCoughStartMs = now + 3600
       }
     }
   } else {

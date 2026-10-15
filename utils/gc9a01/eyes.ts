@@ -142,19 +142,32 @@ export function drawEyebrows(ctx: CanvasRenderingContext2D, ex: number, ey: numb
 
 export function renderEyes(ctx: CanvasRenderingContext2D, emotion: Gc9a01Emotion, theme: EmotionTheme, metrics: FaceMetrics, now: number): void {
   const { eyeXPos, eyeYPos, squashRx, squashRy } = metrics
+  const sneezePhase = (now - sharedState.emotionEnteredMs) % 2600
+  const browLift = emotion === 'SNEEZE' && sneezePhase < 850 ? -5 * (sneezePhase / 850) : 0
   for (let i = 0; i < 2; i++) {
     const side = i as 0 | 1
     const ex = eyeXPos[i]
-    drawEyebrows(ctx, ex, eyeYPos, side, theme, now)
-    if (emotion === 'BABY_ROCKING') {
+    drawEyebrows(ctx, ex, eyeYPos + browLift, side, theme, now)
+    if (emotion === 'SNEEZE') {
+      if (sneezePhase < 850) drawNormalEye(ctx, ex, eyeYPos, squashRx, 12, ex + sharedState.currentEyeX, eyeYPos - 2, 9, theme)
+      else if (sneezePhase < 1850) drawChevronEye(ctx, ex, eyeYPos, side, theme)
+      else {
+        const recov = (sneezePhase - 1850) / 750
+        const ry = Math.max(3, squashRy * Math.min(1, 0.25 + recov * 0.85))
+        drawNormalEye(ctx, ex, eyeYPos, squashRx, ry, ex + sharedState.currentEyeX, eyeYPos, 10, theme)
+      }
+    } else if (emotion === 'BABY_ROCKING') {
       const drowsyRy = 4 + (Math.sin(now * 0.0032) + 1) * 5.5
       drawNormalEye(ctx, ex, eyeYPos + 3, squashRx * 0.92, drowsyRy, ex + sharedState.currentEyeX * 0.3, eyeYPos + 5, 7, theme)
       drawSleepArcEye(ctx, ex, eyeYPos - 2, theme)
     } else if (theme.eyeMode === 'cross') drawCrossEye(ctx, ex, eyeYPos, theme)
     else if (theme.eyeMode === 'sleepArc') drawSleepArcEye(ctx, ex, eyeYPos, theme)
     else if (theme.eyeMode === 'happyArc') drawHappyArcEye(ctx, ex, eyeYPos, theme)
-    else if (theme.eyeMode === 'squint' || (theme.eyeMode === 'wink' && side === 1)) drawChevronEye(ctx, ex, eyeYPos, side, theme)
-    else if (theme.eyeMode === 'heart') drawHeartEye(ctx, ex, eyeYPos, side, now, theme)
+    else if (theme.eyeMode === 'squint' || (theme.eyeMode === 'wink' && side === 1)) {
+      if (theme.eyeMode === 'wink' && sharedState.transitionAlpha < 0.45) {
+        drawNormalEye(ctx, ex, eyeYPos, squashRx, Math.max(3, squashRy * (1 - sharedState.transitionAlpha * 1.9)), ex, eyeYPos, 10, theme)
+      } else drawChevronEye(ctx, ex, eyeYPos, side, theme)
+    } else if (theme.eyeMode === 'heart') drawHeartEye(ctx, ex, eyeYPos, side, now, theme)
     else if (theme.eyeMode === 'star') drawStarEye(ctx, ex, eyeYPos, side, now, theme)
     else if (theme.eyeMode === 'spiral') drawSpiralEye(ctx, ex, eyeYPos, squashRx, squashRy, side, now, theme)
     else if (theme.eyeMode === 'suspicious') {

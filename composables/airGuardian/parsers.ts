@@ -50,38 +50,43 @@ export function applyBackendSample(sampleInput: RawTelemetryPayload, markHardwar
   const sample = mergeTelemetryLayers(sampleInput, sampleInput.raw, sampleInput.processed, sampleInput.prediction)
   const isSim = sample.source === 'simulator' || operationMode.value === 'LOCAL'
   if (isSim) {
-    lastPacketSource.value = 'SIMULATOR'
-    lastPacketTime.value = Date.now()
+    lastPacketSource.value = 'SIMULATOR'; lastPacketTime.value = Date.now()
   } else if (markHardwareOnline) {
-    lastPacketSource.value = 'HARDWARE'
-    lastPacketTime.value = Date.now()
-    nowTick.value = Date.now()
+    lastPacketSource.value = 'HARDWARE'; lastPacketTime.value = Date.now(); nowTick.value = Date.now()
   }
 
   const s = sample.sensors
-  const ppm = sample.ppm ?? s?.ppm
-  if (ppm !== undefined) telemetry.value.ppm = Number(ppm)
+  const ppm = sample.ppm ?? s?.ppm; if (ppm !== undefined) telemetry.value.ppm = Number(ppm)
+  const coPpm = sample.co_ppm ?? sample.coPpm ?? s?.co_ppm ?? s?.coPpm; if (coPpm !== undefined) telemetry.value.co_ppm = Number(coPpm)
+  const temp = sample.temperature ?? s?.temperature; if (temp !== undefined) telemetry.value.temperature = compensateChassisTemperature(Number(temp), !isSim)
+  const hum = sample.humidity ?? s?.humidity; if (hum !== undefined) telemetry.value.humidity = Number(hum)
 
-  const coPpm = sample.co_ppm ?? sample.coPpm ?? s?.co_ppm ?? s?.coPpm
-  if (coPpm !== undefined) telemetry.value.co_ppm = Number(coPpm)
-
-  const temp = sample.temperature ?? s?.temperature
-  if (temp !== undefined) telemetry.value.temperature = compensateChassisTemperature(Number(temp), !isSim)
-
-  const hum = sample.humidity ?? s?.humidity
-  if (hum !== undefined) telemetry.value.humidity = Number(hum)
-
+  const freeHeap = sample.free_heap ?? sample.hardware?.free_heap
+  const uptimeS = sample.uptime_s ?? sample.hardware?.uptime_s
+  const isLiveHw = !isSim && (freeHeap !== undefined || uptimeS !== undefined)
   const delta = sample.delta_ppm_1m ?? sample.delta_ppm ?? sample.slope_ppm ?? s?.delta_ppm_1m ?? s?.delta_ppm
-  if (delta !== undefined) telemetry.value.delta_ppm_1m = Number(delta)
+  const sensorDelta = sample.delta_ppm ?? s?.delta_ppm ?? delta
 
-  const pred = sample.predicted_ppm_15m ?? s?.predicted_ppm_15m
-  telemetry.value.predicted_ppm_15m = pred !== undefined
-    ? Number(pred)
-    : Math.max(380, Math.min(10000, Math.round(telemetry.value.ppm + telemetry.value.delta_ppm_1m * 15.0 * 0.65)))
+  if (isLiveHw) {
+    if (sensorDelta !== undefined) {
+      telemetry.value.delta_ppm_1m = Math.abs(Number(sensorDelta)) < 1.5
+        ? 0
+        : Math.round((telemetry.value.delta_ppm_1m * 0.65 + Number(sensorDelta) * 0.35) * 10) / 10
+    }
+    const targetPred = Math.max(380, Math.min(10000, Math.round(telemetry.value.ppm + telemetry.value.delta_ppm_1m * 15.0 * 0.65)))
+    const prevPred = telemetry.value.predicted_ppm_15m || telemetry.value.ppm
+    telemetry.value.predicted_ppm_15m = Math.abs(telemetry.value.delta_ppm_1m) < 1.5
+      ? Math.round(prevPred * 0.7 + telemetry.value.ppm * 0.3)
+      : Math.round(prevPred * 0.6 + targetPred * 0.4)
+  } else {
+    if (delta !== undefined) telemetry.value.delta_ppm_1m = Number(delta)
+    const pred = sample.predicted_ppm_15m ?? s?.predicted_ppm_15m
+    telemetry.value.predicted_ppm_15m = pred !== undefined
+      ? Number(pred)
+      : Math.max(380, Math.min(10000, Math.round(telemetry.value.ppm + telemetry.value.delta_ppm_1m * 15.0 * 0.65)))
+  }
 
-  const incomingRisk =
-    sample.risk_status || sample.status || s?.risk_status ||
-    sample.device_emotion || sample.emotion || s?.device_emotion || s?.emotion
+  const incomingRisk = sample.risk_status || sample.status || s?.risk_status || sample.device_emotion || sample.emotion || s?.device_emotion || s?.emotion
   if (incomingRisk) telemetry.value.risk_status = parseBaseRiskStatus(String(incomingRisk))
   if (sample.session_id !== undefined) telemetry.value.session_id = sample.session_id
   if (sample.timestamp) telemetry.value.timestamp = Number(sample.timestamp)
@@ -89,13 +94,8 @@ export function applyBackendSample(sampleInput: RawTelemetryPayload, markHardwar
 
   const rawAdc = sample.raw_adc ?? sample.raw_adc135 ?? s?.raw_adc ?? s?.raw_adc135
   if (rawAdc !== undefined) telemetry.value.raw_adc = Number(rawAdc)
-
   const rawMq7 = sample.raw_adc7 ?? sample.mq7_raw ?? s?.raw_adc7 ?? s?.mq7_raw
-  if (rawMq7 !== undefined) {
-    telemetry.value.raw_adc7 = Number(rawMq7)
-    telemetry.value.mq7_raw = Number(rawMq7)
-  }
-
+  if (rawMq7 !== undefined) { telemetry.value.raw_adc7 = Number(rawMq7); telemetry.value.mq7_raw = Number(rawMq7) }
   const mpuConn = sample.mpu_connected ?? s?.mpu_connected
   if (mpuConn !== undefined) telemetry.value.mpu_connected = Boolean(mpuConn)
 
@@ -134,9 +134,7 @@ export function applyBackendSample(sampleInput: RawTelemetryPayload, markHardwar
   const ay = sample.ay ?? s?.ay; if (ay !== undefined) telemetry.value.ay = Number(ay)
   const az = sample.az ?? s?.az; if (az !== undefined) telemetry.value.az = Number(az)
 
-  const freeHeap = sample.free_heap ?? sample.hardware?.free_heap
   if (freeHeap !== undefined) telemetry.value.free_heap = Number(freeHeap)
-  const uptimeS = sample.uptime_s ?? sample.hardware?.uptime_s
   if (uptimeS !== undefined) telemetry.value.uptime_s = Number(uptimeS)
   const offlinePending = sample.offline_pending ?? sample.storage?.offline_pending
   if (offlinePending !== undefined) telemetry.value.offline_pending = Number(offlinePending)
@@ -176,7 +174,8 @@ export function applyBackendSample(sampleInput: RawTelemetryPayload, markHardwar
     predicted_ppm_15m: Number(telemetry.value.predicted_ppm_15m)
   }
   const last = history.value[history.value.length - 1]
-  if (!last || last.timestamp !== newPoint.timestamp) {
+  const minGap = isLiveHw ? 1500 : 1
+  if (!last || Math.abs(newPoint.timestamp - last.timestamp) >= minGap) {
     history.value = [...history.value.slice(-49), newPoint]
   }
 }

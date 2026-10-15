@@ -147,6 +147,9 @@ export type EmotionPalette = EmotionTheme
 
 export interface SharedAnimState {
   lastStepMs: number
+  lastEmotion: Gc9a01Emotion
+  emotionEnteredMs: number
+  transitionAlpha: number
   breathPhase: number
   breathOffset: number
   blinkState: number

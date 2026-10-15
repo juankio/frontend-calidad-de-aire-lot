@@ -46,13 +46,13 @@ export const EMOTION_THEMES: Record<Gc9a01Emotion, EmotionTheme> = {
   WALL_LEFT: gestureTheme('OPTIMAL', 'wallLeft', 'neutral', 'worried'),
   WALL_RIGHT: gestureTheme('OPTIMAL', 'wallRight', 'neutral', 'worried'),
   FREEFALL: gestureTheme('OPTIMAL', 'wide', 'yawn', 'surprised'),
-  WINK: gestureTheme('OPTIMAL', 'wink', 'tongue', 'normal'),
+  WINK: gestureTheme('OPTIMAL', 'wink', 'smile', 'normal'),
   LOVE: gestureTheme('OPTIMAL', 'heart', 'smile', 'normal'),
   BUBBLEGUM: gestureTheme('OPTIMAL', 'normal', 'bubblegum', 'normal'),
   WHISTLE: gestureTheme('OPTIMAL', 'normal', 'whistle', 'normal'),
   SNEEZE: gestureTheme('OPTIMAL', 'squint', 'openOval', 'worried'),
   YAWN: gestureTheme('OPTIMAL', 'sleepArc', 'yawn', 'normal'),
-  DERP: gestureTheme('OPTIMAL', 'derp', 'tongue', 'skeptical'),
+  DERP: gestureTheme('OPTIMAL', 'derp', 'smirk', 'skeptical'),
   SUSPICIOUS: gestureTheme('OPTIMAL', 'suspicious', 'neutral', 'skeptical'),
   GLASSES_COOL: gestureTheme('OPTIMAL', 'normal', 'smirk', 'skeptical'),
   COFFEE: gestureTheme('OPTIMAL', 'happyArc', 'smile', 'normal'),
@@ -63,7 +63,7 @@ export const EMOTION_THEMES: Record<Gc9a01Emotion, EmotionTheme> = {
   ZEN: gestureTheme('OPTIMAL', 'sleepArc', 'smile', 'normal'),
   CRYING: gestureTheme('OPTIMAL', 'normal', 'wavy', 'worried'),
   LAUGHING: gestureTheme('OPTIMAL', 'happyArc', 'laugh', 'normal'),
-  HOT_PANTING: gestureTheme('OPTIMAL', 'normal', 'tongue', 'worried')
+  HOT_PANTING: gestureTheme('OPTIMAL', 'normal', 'openOval', 'worried')
 }
 
 export function resolveAirQualityTier(
@@ -78,7 +78,7 @@ export function resolveAirQualityTier(
   }
   if (
     status === 'WARNING_PREDICTIVE' || status === 'PREDICTIVE_WARNING' || status === 'WARNING' ||
-    (ppm !== undefined && ppm >= 700 && ppm < 1000) || (coPpm !== undefined && coPpm >= 9 && coPpm < 35) ||
+    (ppm !== undefined && ppm >= 700) || (coPpm !== undefined && coPpm >= 18) ||
     emotion === 'WARNING_PREDICTIVE' || emotion === 'GAS_MASK'
   ) {
     return 'WARNING_PREDICTIVE'
