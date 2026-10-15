@@ -37,7 +37,7 @@ const {
   wsConnected, usbConnected, operationMode, hardwareStatus, effectiveRiskStatus,
   lastPacketAgeSec, isModalOpen, viewMode,
   setOperationMode, toggleViewMode, selectSession, fetchSessions,
-  deleteSession, setManualGyro, triggerGyroShake
+  deleteSession, setManualGyro, calibrateGyroZero, triggerGyroShake
 } = useAirGuardian()
 
 function openEditModal(session: SessionData) {
@@ -137,6 +137,7 @@ async function handleDeleteSession(session: SessionData & { session_id?: string 
           :device-emotion="telemetry.device_emotion"
           :is-hardware-online="operationMode === 'LOCAL' || hardwareStatus === 'ONLINE'"
           @update-gyro="(x, y) => setManualGyro(x, y)"
+          @calibrate="calibrateGyroZero"
           @shake="triggerGyroShake"
         />
         <SystemEsp32TelemetryCard

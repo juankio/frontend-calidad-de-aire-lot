@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import LiveMascotWidget from '../LiveMascotWidget.vue'
 import MechaDigitalTwin from '../mecha/MechaDigitalTwin.vue'
 import { Cpu, Eye, Layers, Maximize2, Vibrate, Box } from 'lucide-vue-next'
@@ -61,6 +61,26 @@ function setStage(stage: 'DUAL' | 'XRAY' | '3D_FULL') {
   chamberStage.value = stage
   clamshellDist.value = stage === 'XRAY' ? 24 : 0
 }
+
+const isUpsideDown = computed(() => Math.abs(props.roll ?? 0) > 135)
+
+const mirrorRollDeg = ref(Number(props.roll ?? 0))
+watch(
+  () => props.roll,
+  (nextRoll) => {
+    const target = Number(nextRoll ?? 0)
+    const current = mirrorRollDeg.value
+    let delta = ((target - current) % 360 + 540) % 360 - 180
+    if (delta === -180 && target > current) delta = 180
+    mirrorRollDeg.value = Number((current + delta).toFixed(1))
+  },
+  { immediate: true }
+)
+
+const mirrorRotationStyle = computed(() => ({
+  transform: `rotate(${mirrorRollDeg.value}deg)`,
+  transition: 'transform 140ms ease-out'
+}))
 
 const energyTheme = computed(() => {
   if (props.isShaking || props.riskStatus === 'DIZZY' || props.deviceEmotion === 'DIZZY') {
@@ -143,22 +163,31 @@ const energyTheme = computed(() => {
       <div class="sm:col-span-5 h-full min-h-0 flex flex-col items-center justify-between bg-slate-950/90 border border-cyan-500/25 rounded-xl p-1.5 relative overflow-hidden">
         <div class="w-full flex items-center justify-between text-[7.5px] font-mono text-cyan-300 border-b border-cyan-500/20 pb-1">
           <span class="font-bold tracking-wider">ESPEJO 1:1 PANTALLA GC9A01</span>
-          <span class="px-1 py-0.2 rounded bg-cyan-950 border border-cyan-500/40">240×240 IPS</span>
+          <span
+            v-if="isUpsideDown"
+            class="px-1.5 py-0.2 rounded bg-amber-950/90 border border-amber-400/70 text-amber-300 font-bold animate-pulse"
+          >
+            ORIENTACIÓN: DE CABEZA (180°)
+          </span>
+          <span v-else class="px-1 py-0.2 rounded bg-cyan-950 border border-cyan-500/40">240×240 IPS</span>
         </div>
 
         <div class="flex-1 min-h-0 flex items-center justify-center py-0.5">
-          <LiveMascotWidget
-            :ppm="ppm" :co-ppm="coPpm" :temperature="temperature" :humidity="humidity"
-            :risk-status="riskStatus" :device-emotion="deviceEmotion || riskStatus"
-            :view-mode="viewMode === 'HUD' ? 'HUD' : 'FACE'" :eye-x="eyeX" :eye-y="eyeY"
-            :is-shaking="isShaking" :compact="true"
-          />
+          <div :style="mirrorRotationStyle" class="flex items-center justify-center">
+            <LiveMascotWidget
+              :ppm="ppm" :co-ppm="coPpm" :temperature="temperature" :humidity="humidity"
+              :risk-status="riskStatus" :device-emotion="deviceEmotion || riskStatus"
+              :view-mode="viewMode === 'HUD' ? 'HUD' : 'FACE'" :eye-x="eyeX" :eye-y="eyeY"
+              :is-shaking="isShaking" :compact="true"
+            />
+          </div>
         </div>
 
         <div class="w-full flex items-center justify-between text-[7.5px] font-mono text-slate-400 pt-1 border-t border-slate-800/80">
           <span>PITCH: <strong class="text-cyan-300">{{ (pitch ?? 0).toFixed(1) }}°</strong></span>
           <span>ROLL: <strong class="text-cyan-300">{{ (roll ?? 0).toFixed(1) }}°</strong></span>
-          <span>OJO: <strong class="text-emerald-300">{{ (eyeX ?? 0).toFixed(1) }},{{ (eyeY ?? 0).toFixed(1) }}</strong></span>
+          <span v-if="isUpsideDown" class="text-amber-300 font-bold">DE CABEZA (180°)</span>
+          <span v-else>OJO: <strong class="text-emerald-300">{{ (eyeX ?? 0).toFixed(1) }},{{ (eyeY ?? 0).toFixed(1) }}</strong></span>
         </div>
       </div>
     </div>
@@ -176,14 +205,17 @@ const energyTheme = computed(() => {
         <span class="px-1.5 py-0.5 rounded bg-slate-950/90 border border-sky-500/50 text-[8px] font-mono text-sky-300">MPU-6050 I2C</span>
         <span class="px-1.5 py-0.5 rounded bg-slate-950/90 border border-rose-500/50 text-[8px] font-mono text-rose-300">MQ-135 + MQ-7</span>
         <span class="px-1.5 py-0.5 rounded bg-slate-950/90 border border-amber-500/50 text-[8px] font-mono text-amber-300">DHT11 + GC9A01 SPI</span>
+        <span v-if="isUpsideDown" class="px-1.5 py-0.5 rounded bg-amber-950/90 border border-amber-400/70 text-[8px] font-mono font-bold text-amber-300">ORIENTACIÓN: DE CABEZA (180°)</span>
       </div>
       <div class="absolute bottom-1.5 right-1.5 scale-[0.58] origin-bottom-right pointer-events-none">
-        <LiveMascotWidget
-          :ppm="ppm" :co-ppm="coPpm" :temperature="temperature" :humidity="humidity"
-          :risk-status="riskStatus" :device-emotion="deviceEmotion || riskStatus"
-          :view-mode="viewMode === 'HUD' ? 'HUD' : 'FACE'" :eye-x="eyeX" :eye-y="eyeY"
-          :is-shaking="isShaking" :compact="true"
-        />
+        <div :style="mirrorRotationStyle" class="flex items-center justify-center">
+          <LiveMascotWidget
+            :ppm="ppm" :co-ppm="coPpm" :temperature="temperature" :humidity="humidity"
+            :risk-status="riskStatus" :device-emotion="deviceEmotion || riskStatus"
+            :view-mode="viewMode === 'HUD' ? 'HUD' : 'FACE'" :eye-x="eyeX" :eye-y="eyeY"
+            :is-shaking="isShaking" :compact="true"
+          />
+        </div>
       </div>
     </div>
 

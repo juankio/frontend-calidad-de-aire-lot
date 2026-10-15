@@ -863,8 +863,8 @@ export function useMechaThreeScene() {
           pitchDeg = currentOptions.pitch ?? 0
           rollDeg = currentOptions.roll ?? 0
         } else if (currentOptions.eyeX !== undefined || currentOptions.eyeY !== undefined) {
-          rollDeg = (currentOptions.eyeX ?? 0) * 3.5
-          pitchDeg = -(currentOptions.eyeY ?? 0) * 3.5
+          rollDeg = (currentOptions.eyeX ?? 0) * 9.0
+          pitchDeg = (currentOptions.eyeY ?? 0) * 9.0
         } else if (
           currentOptions.ax !== undefined &&
           currentOptions.ay !== undefined &&
@@ -877,14 +877,31 @@ export function useMechaThreeScene() {
           rollDeg = (Math.atan2(ay, az) * 180) / Math.PI
         }
 
-        const pitchRad = (pitchDeg * Math.PI) / 180
-        const rollRad = (rollDeg * Math.PI) / 180
+        const targetPitchRad = (pitchDeg * Math.PI) / 180
+        const targetRollRad = -(rollDeg * Math.PI) / 180
 
-        assemblyGroup.rotation.x += (pitchRad - assemblyGroup.rotation.x) * 0.12
-        assemblyGroup.rotation.z += (-rollRad - assemblyGroup.rotation.z) * 0.12
+        const deltaPitch = Math.atan2(
+          Math.sin(targetPitchRad - assemblyGroup.rotation.x),
+          Math.cos(targetPitchRad - assemblyGroup.rotation.x)
+        )
+        const deltaRoll = Math.atan2(
+          Math.sin(targetRollRad - assemblyGroup.rotation.z),
+          Math.cos(targetRollRad - assemblyGroup.rotation.z)
+        )
+
+        assemblyGroup.rotation.x += deltaPitch * 0.28
+        assemblyGroup.rotation.z += deltaRoll * 0.28
       } else {
-        assemblyGroup.rotation.x += (0 - assemblyGroup.rotation.x) * 0.12
-        assemblyGroup.rotation.z += (0 - assemblyGroup.rotation.z) * 0.12
+        const deltaPitch = Math.atan2(
+          Math.sin(0 - assemblyGroup.rotation.x),
+          Math.cos(0 - assemblyGroup.rotation.x)
+        )
+        const deltaRoll = Math.atan2(
+          Math.sin(0 - assemblyGroup.rotation.z),
+          Math.cos(0 - assemblyGroup.rotation.z)
+        )
+        assemblyGroup.rotation.x += deltaPitch * 0.25
+        assemblyGroup.rotation.z += deltaRoll * 0.25
       }
 
       if (isDizzyOrShaking) {

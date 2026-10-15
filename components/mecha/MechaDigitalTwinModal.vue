@@ -49,19 +49,13 @@ const autoRotateActive = ref(false)
 
 const displayPitch = computed(() => {
   if (props.pitch !== undefined && props.pitch !== 0) return Number(props.pitch).toFixed(1)
-  if (props.ax !== undefined && props.ay !== undefined && props.az !== undefined) {
-    const p = Math.atan2(-props.ax, Math.sqrt(props.ay * props.ay + props.az * props.az)) * (180 / Math.PI)
-    return p.toFixed(1)
-  }
+  if (props.eyeY !== undefined && props.eyeY !== 0) return (Number(props.eyeY) * 9.0).toFixed(1)
   return '0.0'
 })
 
 const displayRoll = computed(() => {
   if (props.roll !== undefined && props.roll !== 0) return Number(props.roll).toFixed(1)
-  if (props.ay !== undefined && props.az !== undefined) {
-    const r = Math.atan2(props.ay, props.az || 9.8) * (180 / Math.PI)
-    return r.toFixed(1)
-  }
+  if (props.eyeX !== undefined && props.eyeX !== 0) return (Number(props.eyeX) * 9.0).toFixed(1)
   return '0.0'
 })
 

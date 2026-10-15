@@ -16,6 +16,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'updateGyro', eyeX: number, eyeY: number): void
   (e: 'shake'): void
+  (e: 'calibrate'): void
 }>()
 
 const isOnline = computed(() => props.isHardwareOnline ?? true)
@@ -23,14 +24,37 @@ const isConnected = computed(() => isOnline.value && (props.mpuConnected ?? true
 const xVal = computed(() => Number(props.eyeX ?? 0))
 const yVal = computed(() => Number(props.eyeY ?? 0))
 
-const motionMagnitude = computed(() => Math.sqrt(xVal.value * xVal.value + yVal.value * yVal.value))
-const isDizzyOrShaking = computed(() => Boolean(props.isShaking) || props.deviceEmotion === 'DIZZY' || motionMagnitude.value > 5.5)
+const rollVal = computed(() => {
+  if (props.roll !== undefined && props.roll !== 0) return Number(props.roll)
+  return Number((xVal.value * 9.0).toFixed(1))
+})
+
+const pitchVal = computed(() => {
+  if (props.pitch !== undefined && props.pitch !== 0) return Number(props.pitch)
+  return Number((yVal.value * 9.0).toFixed(1))
+})
+
+const rollDeg = rollVal
+const pitchDeg = pitchVal
+
+const isDizzyOrShaking = computed(() => Boolean(props.isShaking) || props.deviceEmotion === 'DIZZY')
+
+const orientationStatusLabel = computed(() => {
+  if (isDizzyOrShaking.value) return '¡Sacudida Dinámica!'
+  if (Math.abs(rollVal.value) > 135) return 'De Cabeza (180°)'
+  if (Math.abs(rollVal.value) > 45) return `Inclinación Lateral (${Math.round(rollVal.value)}°)`
+  return 'Inclinación Estable'
+})
 
 const pupilPos = computed(() => {
-  const clampX = Math.max(-8, Math.min(8, xVal.value))
-  const clampY = Math.max(-8, Math.min(8, yVal.value))
-  const px = (clampX / 8) * 20
-  const py = (clampY / 8) * 20
+  const clampedRoll = Math.max(-180, Math.min(180, rollVal.value))
+  const clampedPitch = Math.max(-90, Math.min(90, pitchVal.value))
+  const rawPx = (clampedRoll / 180) * 22
+  const rawPy = (clampedPitch / 90) * 22
+  const dist = Math.hypot(rawPx, rawPy)
+  const scale = dist > 22 ? 22 / dist : 1
+  const px = Number((rawPx * scale).toFixed(1))
+  const py = Number((rawPy * scale).toFixed(1))
   return {
     transform: `translate(${px}px, ${py}px)`
   }
@@ -42,11 +66,19 @@ const isDragging = ref(false)
 function updateGyroFromEvent(e: PointerEvent) {
   if (!radarRef.value) return
   const rect = radarRef.value.getBoundingClientRect()
-  const halfW = rect.width / 2 || 36
-  const halfH = rect.height / 2 || 36
+  const halfW = rect.width / 2 || 34
+  const halfH = rect.height / 2 || 34
   const normX = Math.max(-1, Math.min(1, (e.clientX - (rect.left + halfW)) / halfW))
   const normY = Math.max(-1, Math.min(1, (e.clientY - (rect.top + halfH)) / halfH))
-  emit('updateGyro', Number((normX * 8).toFixed(1)), Number((normY * 8).toFixed(1)))
+  emit('updateGyro', Number((normX * 20).toFixed(1)), Number((normY * 10).toFixed(1)))
+}
+
+function toggleUpsideDownTest() {
+  if (Math.abs(rollVal.value) > 135) {
+    emit('updateGyro', 0, 0)
+  } else {
+    emit('updateGyro', 20, 0)
+  }
 }
 
 function onPointerDown(e: PointerEvent) {
@@ -119,32 +151,56 @@ function onPointerUp() {
       <div class="space-y-1">
         <div class="bg-slate-950/80 border border-cyan-500/20 rounded-lg p-1.5 space-y-0.5">
           <div class="flex justify-between items-center text-[8.5px]">
-            <span class="text-slate-400">Eje X / Roll:</span>
-            <span class="font-bold text-cyan-300">{{ xVal >= 0 ? `+${xVal.toFixed(1)}` : xVal.toFixed(1) }}</span>
+            <span class="text-slate-400">Roll (Lado):</span>
+            <span class="font-bold text-cyan-300">
+              {{ rollDeg >= 0 ? `+${rollDeg.toFixed(1)}°` : `${rollDeg.toFixed(1)}°` }}
+            </span>
           </div>
           <div class="flex justify-between items-center text-[8.5px]">
-            <span class="text-slate-400">Eje Y / Pitch:</span>
-            <span class="font-bold text-cyan-300">{{ yVal >= 0 ? `+${yVal.toFixed(1)}` : yVal.toFixed(1) }}</span>
+            <span class="text-slate-400">Pitch (Frente):</span>
+            <span class="font-bold text-cyan-300">
+              {{ pitchDeg >= 0 ? `+${pitchDeg.toFixed(1)}°` : `${pitchDeg.toFixed(1)}°` }}
+            </span>
           </div>
         </div>
 
         <div
           class="px-1.5 py-1 rounded-lg border text-[8px] font-mono font-bold flex items-center gap-1 leading-tight"
-          :class="isDizzyOrShaking ? 'bg-amber-950/70 border-amber-500 text-amber-300 animate-pulse' : 'bg-slate-950/80 border-cyan-500/20 text-slate-300'"
+          :class="isDizzyOrShaking ? 'bg-amber-950/70 border-amber-500 text-amber-300 animate-pulse' : (Math.abs(rollVal) > 135 ? 'bg-cyan-950/80 border-cyan-400/70 text-cyan-200' : 'bg-slate-950/80 border-cyan-500/20 text-slate-300')"
         >
           <AlertTriangle v-if="isDizzyOrShaking" class="w-3 h-3 text-amber-400 shrink-0" />
           <Radio v-else class="w-3 h-3 text-cyan-400 shrink-0" />
-          <span class="truncate">{{ isDizzyOrShaking ? '¡Sacudida Dinámica!' : 'Inclinación Estable' }}</span>
+          <span class="truncate">{{ orientationStatusLabel }}</span>
         </div>
 
-        <button
-          type="button"
-          @click="emit('shake')"
-          class="w-full py-1 px-1.5 rounded-lg bg-fuchsia-950/60 hover:bg-fuchsia-900/70 border border-fuchsia-500/40 text-fuchsia-300 text-[8px] font-mono font-bold flex items-center justify-center gap-1 transition cursor-pointer active:scale-95"
-        >
-          <Vibrate class="w-2.5 h-2.5 shrink-0" />
-          <span>¡Sacudir!</span>
-        </button>
+        <div class="grid grid-cols-3 gap-1">
+          <button
+            type="button"
+            @click="emit('calibrate')"
+            class="w-full py-1 px-1 rounded-lg bg-cyan-950/60 hover:bg-cyan-900/70 border border-cyan-500/40 text-cyan-300 text-[7.5px] font-mono font-bold flex items-center justify-center gap-0.5 transition cursor-pointer active:scale-95"
+            title="Calibrar posición actual como 0.0°"
+          >
+            <Compass class="w-2.5 h-2.5 shrink-0" />
+            <span>0°</span>
+          </button>
+          <button
+            type="button"
+            @click="toggleUpsideDownTest"
+            class="w-full py-1 px-1 rounded-lg border text-[7.5px] font-mono font-bold flex items-center justify-center gap-0.5 transition cursor-pointer active:scale-95"
+            :class="Math.abs(rollVal) > 135 ? 'bg-amber-500/25 border-amber-400/80 text-amber-200' : 'bg-slate-950/80 hover:bg-slate-900 border-amber-500/40 text-amber-300'"
+            title="Probar rotación 180° De Cabeza"
+          >
+            <span>180°</span>
+          </button>
+          <button
+            type="button"
+            @click="emit('shake')"
+            class="w-full py-1 px-1 rounded-lg bg-fuchsia-950/60 hover:bg-fuchsia-900/70 border border-fuchsia-500/40 text-fuchsia-300 text-[7.5px] font-mono font-bold flex items-center justify-center gap-0.5 transition cursor-pointer active:scale-95"
+          >
+            <Vibrate class="w-2.5 h-2.5 shrink-0" />
+            <span>Sacudir</span>
+          </button>
+        </div>
       </div>
     </div>
 

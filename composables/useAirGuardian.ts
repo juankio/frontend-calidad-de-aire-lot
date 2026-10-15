@@ -251,6 +251,9 @@ let fallbackPollingTimer: ReturnType<typeof setInterval> | null = null
 let tickTimer: ReturnType<typeof setInterval> | null = null
 let localMockTimer: ReturnType<typeof setInterval> | null = null
 let manualGyroLockUntil = 0
+let lastRawEyeX = 0
+let lastRawEyeY = 0
+const gyroTareOffset = ref<{ x: number; y: number }>({ x: 0, y: 0 })
 let shakeTimer: ReturnType<typeof setInterval> | null = null
 let usbIngestDebounceTimer: ReturnType<typeof setTimeout> | null = null
 let lastUsbIngestSentAt = 0
@@ -428,29 +431,43 @@ export function useAirGuardian() {
       s?.roll !== undefined ||
       s?.pitch !== undefined
 
-    const inEyeX = sample.eye_x !== undefined
+    const rawInEyeX = sample.eye_x !== undefined
       ? Number(sample.eye_x)
-      : (s?.eye_x !== undefined ? Number(s.eye_x) : telemetry.value.eye_x)
-    const inEyeY = sample.eye_y !== undefined
+      : (s?.eye_x !== undefined ? Number(s.eye_x) : lastRawEyeX)
+    const rawInEyeY = sample.eye_y !== undefined
       ? Number(sample.eye_y)
-      : (s?.eye_y !== undefined ? Number(s.eye_y) : telemetry.value.eye_y)
+      : (s?.eye_y !== undefined ? Number(s.eye_y) : lastRawEyeY)
+
+    lastRawEyeX = rawInEyeX
+    lastRawEyeY = rawInEyeY
+
+    const offsetEyeX = Number((rawInEyeX - gyroTareOffset.value.x).toFixed(1))
+    const offsetEyeY = Number((rawInEyeY - gyroTareOffset.value.y).toFixed(1))
+    const inEyeX = Math.abs(offsetEyeX) <= 0.2 ? 0 : offsetEyeX
+    const inEyeY = Math.abs(offsetEyeY) <= 0.2 ? 0 : offsetEyeY
 
     const rawRoll = sample.roll ?? s?.roll
     const rawPitch = sample.pitch ?? s?.pitch
+    const hasNonZeroRollPitch =
+      (rawRoll !== undefined && Number(rawRoll) !== 0) ||
+      (rawPitch !== undefined && Number(rawPitch) !== 0)
     const shouldDeriveRollPitch =
-      rawRoll === undefined ||
-      rawPitch === undefined ||
-      (Number(rawRoll) === 0 && Number(rawPitch) === 0 && (inEyeX !== 0 || inEyeY !== 0))
+      !hasNonZeroRollPitch ||
+      (Math.abs(inEyeX * 9.0) > 90.5 && Math.abs(Number(rawRoll ?? 0)) <= 90)
 
     if (hasGyroPayload && Date.now() > manualGyroLockUntil) {
-      telemetry.value.eye_x = inEyeX
-      telemetry.value.eye_y = inEyeY
-      telemetry.value.roll = shouldDeriveRollPitch
-        ? Number((inEyeX * 3.5).toFixed(1))
-        : Number(rawRoll)
-      telemetry.value.pitch = shouldDeriveRollPitch
-        ? Number((inEyeY * 3.5).toFixed(1))
-        : Number(rawPitch)
+      let computedRoll = shouldDeriveRollPitch
+        ? inEyeX * 9.0
+        : Number(rawRoll ?? 0) - gyroTareOffset.value.x * 9.0
+      while (computedRoll > 180) computedRoll -= 360
+      while (computedRoll < -180) computedRoll += 360
+      const computedPitch = shouldDeriveRollPitch
+        ? Math.max(-90, Math.min(90, inEyeY * 9.0))
+        : Math.max(-90, Math.min(90, Number(rawPitch ?? 0) - gyroTareOffset.value.y * 9.0))
+      telemetry.value.roll = Math.abs(computedRoll) <= 1.8 ? 0 : Number(computedRoll.toFixed(1))
+      telemetry.value.pitch = Math.abs(computedPitch) <= 1.8 ? 0 : Number(computedPitch.toFixed(1))
+      telemetry.value.eye_x = Number(Math.max(-10, Math.min(10, inEyeX)).toFixed(2))
+      telemetry.value.eye_y = Number(Math.max(-10, Math.min(10, inEyeY)).toFixed(2))
     }
 
     if (sample.ax !== undefined) telemetry.value.ax = Number(sample.ax)
@@ -491,8 +508,7 @@ export function useAirGuardian() {
     ).toUpperCase()
     const shaking =
       Boolean(sample.is_shaking ?? s?.is_shaking) ||
-      rawEmotion === 'DIZZY' ||
-      (hasGyroPayload && Math.sqrt(inEyeX * inEyeX + inEyeY * inEyeY) > 6.0)
+      rawEmotion === 'DIZZY'
 
     if (Date.now() > manualGyroLockUntil) {
       if (hasExplicitEmotionOrShake || hasGyroPayload) {
@@ -544,7 +560,9 @@ export function useAirGuardian() {
       raw_adc: Math.max(0, Math.min(4095, Math.round(Number(t.raw_adc) || 0))),
       raw_adc7: Math.round(Number(t.raw_adc7 ?? t.mq7_raw) || 0),
       mpu_connected: Boolean(t.mpu_connected),
-      eye_x: Number(t.eye_x) || 0,
+      eye_x: Math.abs(Number(t.roll) || 0) > 90
+        ? Number(((Number(t.roll) || 0) / 9.0).toFixed(2))
+        : (Number(t.eye_x) || 0),
       eye_y: Number(t.eye_y) || 0,
       pitch: Number(t.pitch) || 0,
       roll: Number(t.roll) || 0,
@@ -622,8 +640,8 @@ export function useAirGuardian() {
     else if (mockDelta > 20 || curPpm > 750) mockRisk = 'WARNING_PREDICTIVE'
     else if (mockDelta < -15) mockRisk = 'RECOVERY'
 
-    const driftEyeX = Number((Math.sin(Date.now() * 0.0012) * 0.35).toFixed(2))
-    const driftEyeY = Number((Math.cos(Date.now() * 0.0015) * 0.25).toFixed(2))
+    const driftEyeX = 0
+    const driftEyeY = 0
 
     applyLiveTelemetry({
       device_id: 'air-guardian-01',
@@ -651,8 +669,8 @@ export function useAirGuardian() {
     if (Date.now() > manualGyroLockUntil) {
       telemetry.value.eye_x = driftEyeX
       telemetry.value.eye_y = driftEyeY
-      telemetry.value.roll = Number((telemetry.value.eye_x * 3.5).toFixed(1))
-      telemetry.value.pitch = Number((-telemetry.value.eye_y * 3.5).toFixed(1))
+      telemetry.value.roll = 0
+      telemetry.value.pitch = 0
       telemetry.value.is_shaking = false
     }
   }
@@ -955,16 +973,32 @@ export function useAirGuardian() {
 
   function setManualGyro(eyeX: number, eyeY: number, shaking = false, durationMs = 4500) {
     manualGyroLockUntil = Date.now() + durationMs
-    telemetry.value.eye_x = Number(eyeX.toFixed(2))
-    telemetry.value.eye_y = Number(eyeY.toFixed(2))
-    telemetry.value.roll = Number((eyeX * 3.5).toFixed(1))
-    telemetry.value.pitch = Number((-eyeY * 3.5).toFixed(1))
+    const clampedEyeX = Math.max(-20, Math.min(20, Number(eyeX) || 0))
+    const clampedEyeY = Math.max(-10, Math.min(10, Number(eyeY) || 0))
+    let computedRoll = clampedEyeX * 9.0
+    while (computedRoll > 180) computedRoll -= 360
+    while (computedRoll < -180) computedRoll += 360
+    const computedPitch = Math.max(-90, Math.min(90, clampedEyeY * 9.0))
+    telemetry.value.roll = Number(computedRoll.toFixed(1))
+    telemetry.value.pitch = Number(computedPitch.toFixed(1))
+    telemetry.value.eye_x = Number(Math.max(-10, Math.min(10, clampedEyeX)).toFixed(2))
+    telemetry.value.eye_y = Number(Math.max(-10, Math.min(10, clampedEyeY)).toFixed(2))
     telemetry.value.is_shaking = shaking
     if (shaking) {
       telemetry.value.device_emotion = 'DIZZY'
     } else if (telemetry.value.device_emotion === 'DIZZY') {
       telemetry.value.device_emotion = telemetry.value.risk_status === 'DIZZY' ? 'OPTIMAL' : telemetry.value.risk_status
     }
+  }
+
+  function calibrateGyroZero() {
+    gyroTareOffset.value = { x: lastRawEyeX, y: lastRawEyeY }
+    manualGyroLockUntil = 0
+    telemetry.value.eye_x = 0
+    telemetry.value.eye_y = 0
+    telemetry.value.roll = 0
+    telemetry.value.pitch = 0
+    telemetry.value.is_shaking = false
   }
 
   function triggerGyroShake() {
@@ -1075,6 +1109,8 @@ export function useAirGuardian() {
     setOperationMode,
     toggleViewMode,
     setManualGyro,
+    calibrateGyroZero,
+    gyroTareOffset,
     triggerGyroShake,
     selectSession,
     updateSession,
