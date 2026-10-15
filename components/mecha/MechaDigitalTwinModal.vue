@@ -8,9 +8,14 @@ import MechaDigitalTwinHud from './MechaDigitalTwinHud.vue'
 const props = withDefaults(defineProps<{
   isOpen: boolean
   ppm?: number
-  riskStatus?: 'OPTIMAL' | 'WARNING_PREDICTIVE' | 'CRITICAL' | 'RECOVERY' | 'SLEEPING'
+  riskStatus?: 'OPTIMAL' | 'WARNING_PREDICTIVE' | 'CRITICAL' | 'RECOVERY' | 'SLEEPING' | 'DIZZY'
+  deviceEmotion?: string
+  screenViewMode?: 'FACE' | 'HUD'
   pitch?: number
   roll?: number
+  eyeX?: number
+  eyeY?: number
+  isShaking?: boolean
   ax?: number
   ay?: number
   az?: number
@@ -19,8 +24,13 @@ const props = withDefaults(defineProps<{
 }>(), {
   ppm: 420,
   riskStatus: 'OPTIMAL',
+  deviceEmotion: 'OPTIMAL',
+  screenViewMode: 'FACE',
   pitch: 0,
   roll: 0,
+  eyeX: 0,
+  eyeY: 0,
+  isShaking: false,
   temperature: 24.2,
   humidity: 52
 })
@@ -33,8 +43,9 @@ const modalCardRef = ref<HTMLElement | null>(null)
 const isClosing = ref(false)
 
 const isWireframe = ref(false)
+const isXray = ref(false)
 const clamshellDist = ref(0)
-const autoRotateActive = ref(true)
+const autoRotateActive = ref(false)
 
 const displayPitch = computed(() => {
   if (props.pitch !== undefined && props.pitch !== 0) return Number(props.pitch).toFixed(1)
@@ -108,7 +119,6 @@ watch(() => props.isOpen, (val) => {
       ref="modalCardRef"
       class="relative w-full max-w-6xl h-[92vh] max-h-[860px] bg-slate-950/95 border border-cyan-500/40 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.25)] flex flex-col overflow-hidden text-slate-100 font-sans"
     >
-      <!-- Cabecera Táctica Cyber Mecha -->
       <header class="shrink-0 px-4 py-3 border-b border-cyan-500/25 flex items-center justify-between bg-slate-900/80 backdrop-blur-xl">
         <div class="flex items-center gap-3">
           <div class="w-8 h-8 rounded-lg bg-cyan-950/80 border border-cyan-500/50 flex items-center justify-center text-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.3)]">
@@ -142,7 +152,6 @@ watch(() => props.isOpen, (val) => {
         </div>
       </header>
 
-      <!-- Cuerpo del Modal: Visor 3D y HUD Lateral -->
       <div class="flex-1 min-h-0 flex flex-col lg:flex-row items-stretch">
         <div class="flex-1 relative bg-gradient-to-b from-slate-950 via-[#030a16] to-slate-950 flex items-center justify-center overflow-hidden min-h-[340px] lg:min-h-0">
           <div class="absolute inset-0 bg-[radial-gradient(#06b6d4_1px,transparent_1px)] [background-size:24px_24px] opacity-15 pointer-events-none" />
@@ -150,13 +159,21 @@ watch(() => props.isOpen, (val) => {
           <MechaDigitalTwin
             ref="twinRef"
             :ppm="ppm"
+            :temperature="temperature"
+            :humidity="humidity"
             :risk-status="riskStatus"
+            :device-emotion="deviceEmotion"
+            :screen-view-mode="screenViewMode"
             :pitch="pitch"
             :roll="roll"
+            :eye-x="eyeX"
+            :eye-y="eyeY"
+            :is-shaking="isShaking"
             :ax="ax"
             :ay="ay"
             :az="az"
             :wireframe="isWireframe"
+            :xray="isXray"
             :clamshell-distance="clamshellDist"
             :auto-rotate="autoRotateActive"
           />
@@ -169,6 +186,7 @@ watch(() => props.isOpen, (val) => {
 
         <MechaDigitalTwinHud
           v-model:wireframe="isWireframe"
+          v-model:xray="isXray"
           v-model:clamshell-dist="clamshellDist"
           v-model:auto-rotate="autoRotateActive"
           :display-pitch="displayPitch"

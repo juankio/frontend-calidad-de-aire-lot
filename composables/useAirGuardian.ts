@@ -1,6 +1,14 @@
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
-export interface TelemetryData {
+export type RiskEmotionStatus =
+  | 'OPTIMAL'
+  | 'WARNING_PREDICTIVE'
+  | 'CRITICAL'
+  | 'RECOVERY'
+  | 'SLEEPING'
+  | 'DIZZY'
+
+export interface TelemetryState {
   device_id: string
   timestamp: number
   ppm: number
@@ -9,28 +17,32 @@ export interface TelemetryData {
   humidity: number
   delta_ppm_1m: number
   predicted_ppm_15m: number
-  risk_status: 'OPTIMAL' | 'WARNING_PREDICTIVE' | 'CRITICAL' | 'RECOVERY' | 'SLEEPING'
+  risk_status: RiskEmotionStatus
   session_id?: string | null
   source?: 'hardware' | 'simulator'
   raw_adc?: number
   raw_adc7?: number
   mpu_connected?: boolean
-  eye_x?: number
-  eye_y?: number
-  pitch?: number
-  roll?: number
+  eye_x: number
+  eye_y: number
+  pitch: number
+  roll: number
   ax?: number
   ay?: number
   az?: number
+  is_shaking: boolean
   free_heap?: number
   uptime_s?: number
   offline_pending?: number
-  device_emotion?: string
-  view_mode?: string
+  device_emotion: RiskEmotionStatus
+  view_mode: 'FACE' | 'HUD'
 }
+
+export type TelemetryData = TelemetryState
 
 export interface SessionData {
   id: string
+  session_id?: string
   name: string
   description?: string
   latitude: number
@@ -48,6 +60,61 @@ export interface HistoryPoint {
   timestamp: number
   ppm: number
   predicted_ppm_15m: number
+}
+
+interface RawSensorPayload {
+  raw_adc135?: number
+  raw_adc7?: number
+  mpu_connected?: boolean
+  eye_x?: number
+  eye_y?: number
+  pitch?: number
+  roll?: number
+  ax?: number
+  ay?: number
+  az?: number
+}
+
+interface RawTelemetryPayload {
+  device_id?: string
+  timestamp?: number
+  ppm?: number
+  co_ppm?: number
+  coPpm?: number
+  temperature?: number
+  humidity?: number
+  delta_ppm_1m?: number
+  delta_ppm?: number
+  predicted_ppm_15m?: number
+  risk_status?: string
+  session_id?: string | null
+  source?: 'hardware' | 'simulator' | string
+  raw_adc?: number
+  raw_adc135?: number
+  raw_adc7?: number
+  mpu_connected?: boolean
+  eye_x?: number
+  eye_y?: number
+  pitch?: number
+  roll?: number
+  ax?: number
+  ay?: number
+  az?: number
+  is_shaking?: boolean
+  free_heap?: number
+  uptime_s?: number
+  offline_pending?: number
+  device_emotion?: string
+  emotion?: string
+  view_mode?: string
+  sensors?: RawSensorPayload
+  hardware?: {
+    free_heap?: number
+    uptime_s?: number
+  }
+  storage?: {
+    offline_pending?: number
+  }
 }
 
 const DEFAULT_SESSIONS: SessionData[] = [
@@ -104,24 +171,51 @@ const DEFAULT_SESSIONS: SessionData[] = [
 const globalSessions = ref<SessionData[]>(DEFAULT_SESSIONS)
 const globalSelectedSessionId = ref<string | null>(null)
 
+function parseRiskEmotion(raw: string): TelemetryState['device_emotion'] {
+  const normalized = raw.toUpperCase().trim()
+  if (normalized === 'DIZZY' || normalized === 'EMOTION_DIZZY') return 'DIZZY'
+  if (
+    normalized === 'WARNING_PREDICTIVE' ||
+    normalized === 'PREDICTIVE_WARNING' ||
+    normalized === 'EMOTION_PREDICTIVE_WARNING' ||
+    normalized === 'WARNING' ||
+    normalized === 'ALERT'
+  ) {
+    return 'WARNING_PREDICTIVE'
+  }
+  if (
+    normalized === 'CRITICAL' ||
+    normalized === 'EMOTION_CRITICAL' ||
+    normalized === 'DANGER' ||
+    normalized === 'ERROR'
+  ) {
+    return 'CRITICAL'
+  }
+  if (normalized === 'RECOVERY' || normalized === 'EMOTION_RECOVERY' || normalized === 'RECOVERING') {
+    return 'RECOVERY'
+  }
+  if (normalized === 'SLEEPING' || normalized === 'EMOTION_SLEEPING' || normalized === 'SLEEP') {
+    return 'SLEEPING'
+  }
+  return 'OPTIMAL'
+}
+
 export function useAirGuardian() {
   const config = useRuntimeConfig()
-  const apiBase = ((config.public.apiBase as string) || 'https://servidor-taller.tailf19567.ts.net:10000').replace(/\/+$/, '')
-  const wsBase = ((config.public.wsBase as string) || apiBase.replace(/^http/, 'ws')).replace(/\/+$/, '')
+  const apiBase = (String(config.public.apiBase || 'https://servidor-taller.tailf19567.ts.net:10000')).replace(/\/+$/, '')
+  const wsBase = (String(config.public.wsBase || apiBase.replace(/^http/, 'ws'))).replace(/\/+$/, '')
 
   const wsConnected = ref(false)
   const operationMode = ref<'LOCAL' | 'LIVE'>('LIVE')
   const isSimulatorRunning = ref(false)
   const isModalOpen = ref(false)
-  const viewMode = ref<'FACE' | 'HUD' | '3D'>('FACE')
   const selectedSessionId = globalSelectedSessionId
 
-  // Tracking estricto de paquetes
   const lastPacketTime = ref<number | null>(Date.now())
   const lastPacketSource = ref<'HARDWARE' | 'SIMULATOR' | 'NONE'>('HARDWARE')
   const nowTick = ref(Date.now())
 
-  const telemetry = reactive<TelemetryData>({
+  const telemetry = ref<TelemetryState>({
     device_id: 'air-guardian-01',
     timestamp: Date.now(),
     ppm: 420,
@@ -142,12 +236,15 @@ export function useAirGuardian() {
     ax: 0,
     ay: 0,
     az: 9.8,
+    is_shaking: false,
     free_heap: 184320,
     uptime_s: 3600,
     offline_pending: 0,
     device_emotion: 'OPTIMAL',
     view_mode: 'FACE'
   })
+
+  const viewMode = computed<'FACE' | 'HUD'>(() => telemetry.value.view_mode)
 
   const history = ref<HistoryPoint[]>([
     { timestamp: Date.now() - 40000, ppm: 410, predicted_ppm_15m: 415 },
@@ -164,14 +261,14 @@ export function useAirGuardian() {
   let fallbackPollingTimer: ReturnType<typeof setInterval> | null = null
   let tickTimer: ReturnType<typeof setInterval> | null = null
   let localMockTimer: ReturnType<typeof setInterval> | null = null
+  let manualGyroLockUntil = 0
+  let shakeTimer: ReturnType<typeof setInterval> | null = null
 
-  // Cálculo reactivo de segundos transcurridos
   const lastPacketAgeSec = computed(() => {
     if (!lastPacketTime.value) return 999
     return Math.max(0, Math.floor((nowTick.value - lastPacketTime.value) / 1000))
   })
 
-  // Estado del Enlace Inalámbrico
   const hardwareStatus = computed<'ONLINE' | 'SIMULATED' | 'OFFLINE'>(() => {
     if (operationMode.value === 'LOCAL') return 'SIMULATED'
     if (lastPacketTime.value && lastPacketAgeSec.value < 8 && lastPacketSource.value === 'HARDWARE') {
@@ -180,112 +277,95 @@ export function useAirGuardian() {
     return 'OFFLINE'
   })
 
-  // Si está OFFLINE en modo LIVE y no llegan paquetes, la mascota duerme
-  const effectiveRiskStatus = computed(() => {
+  const effectiveRiskStatus = computed<TelemetryState['risk_status']>(() => {
+    if (telemetry.value.is_shaking || telemetry.value.device_emotion === 'DIZZY') return 'DIZZY'
     if (hardwareStatus.value === 'OFFLINE' && operationMode.value === 'LIVE') return 'SLEEPING'
-    return telemetry.risk_status
+    return telemetry.value.risk_status
   })
 
-  function updateFromPayload(data: any) {
+  function applyLiveTelemetry(data: RawTelemetryPayload) {
     if (!data) return
     const isSim = data.source === 'simulator' || operationMode.value === 'LOCAL'
     lastPacketSource.value = isSim ? 'SIMULATOR' : 'HARDWARE'
     lastPacketTime.value = Date.now()
 
-    if (data.ppm !== undefined) telemetry.ppm = Number(data.ppm)
-    if (data.co_ppm !== undefined) telemetry.co_ppm = Number(data.co_ppm)
-    else if (data.coPpm !== undefined) telemetry.co_ppm = Number(data.coPpm)
-    if (data.temperature !== undefined) telemetry.temperature = Number(data.temperature)
-    if (data.humidity !== undefined) telemetry.humidity = Number(data.humidity)
-    if (data.delta_ppm_1m !== undefined) telemetry.delta_ppm_1m = Number(data.delta_ppm_1m)
-    else if (data.delta_ppm !== undefined) telemetry.delta_ppm_1m = Number(data.delta_ppm)
-    if (data.predicted_ppm_15m !== undefined) telemetry.predicted_ppm_15m = Number(data.predicted_ppm_15m)
-    if (data.risk_status) telemetry.risk_status = data.risk_status
-    if (data.session_id !== undefined) telemetry.session_id = data.session_id
-    if (data.timestamp) telemetry.timestamp = Number(data.timestamp)
-    if (data.device_id) telemetry.device_id = data.device_id
+    if (data.ppm !== undefined) telemetry.value.ppm = Number(data.ppm)
+    if (data.co_ppm !== undefined) telemetry.value.co_ppm = Number(data.co_ppm)
+    else if (data.coPpm !== undefined) telemetry.value.co_ppm = Number(data.coPpm)
+    if (data.temperature !== undefined) telemetry.value.temperature = Number(data.temperature)
+    if (data.humidity !== undefined) telemetry.value.humidity = Number(data.humidity)
+    if (data.delta_ppm_1m !== undefined) telemetry.value.delta_ppm_1m = Number(data.delta_ppm_1m)
+    else if (data.delta_ppm !== undefined) telemetry.value.delta_ppm_1m = Number(data.delta_ppm)
+    if (data.predicted_ppm_15m !== undefined) telemetry.value.predicted_ppm_15m = Number(data.predicted_ppm_15m)
+    if (data.risk_status) telemetry.value.risk_status = parseRiskEmotion(data.risk_status)
+    if (data.session_id !== undefined) telemetry.value.session_id = data.session_id
+    if (data.timestamp) telemetry.value.timestamp = Number(data.timestamp)
+    if (data.device_id) telemetry.value.device_id = data.device_id
 
-    // Extracción de sensores individuales y telemetría de sistema
-    if (data.raw_adc !== undefined) telemetry.raw_adc = Number(data.raw_adc)
-    else if (data.raw_adc135 !== undefined) telemetry.raw_adc = Number(data.raw_adc135)
-    else if (data.sensors?.raw_adc135 !== undefined) telemetry.raw_adc = Number(data.sensors.raw_adc135)
+    if (data.raw_adc !== undefined) telemetry.value.raw_adc = Number(data.raw_adc)
+    else if (data.raw_adc135 !== undefined) telemetry.value.raw_adc = Number(data.raw_adc135)
+    else if (data.sensors?.raw_adc135 !== undefined) telemetry.value.raw_adc = Number(data.sensors.raw_adc135)
 
-    if (data.raw_adc7 !== undefined) telemetry.raw_adc7 = Number(data.raw_adc7)
-    else if (data.sensors?.raw_adc7 !== undefined) telemetry.raw_adc7 = Number(data.sensors.raw_adc7)
+    if (data.raw_adc7 !== undefined) telemetry.value.raw_adc7 = Number(data.raw_adc7)
+    else if (data.sensors?.raw_adc7 !== undefined) telemetry.value.raw_adc7 = Number(data.sensors.raw_adc7)
 
-    if (data.mpu_connected !== undefined) telemetry.mpu_connected = Boolean(data.mpu_connected)
-    else if (data.sensors?.mpu_connected !== undefined) telemetry.mpu_connected = Boolean(data.sensors.mpu_connected)
+    if (data.mpu_connected !== undefined) telemetry.value.mpu_connected = Boolean(data.mpu_connected)
+    else if (data.sensors?.mpu_connected !== undefined) telemetry.value.mpu_connected = Boolean(data.sensors.mpu_connected)
 
-    if (data.eye_x !== undefined) telemetry.eye_x = Number(data.eye_x)
-    else if (data.sensors?.eye_x !== undefined) telemetry.eye_x = Number(data.sensors.eye_x)
+    const inEyeX = data.eye_x !== undefined ? Number(data.eye_x) : telemetry.value.eye_x
+    const inEyeY = data.eye_y !== undefined ? Number(data.eye_y) : telemetry.value.eye_y
 
-    if (data.eye_y !== undefined) telemetry.eye_y = Number(data.eye_y)
-    else if (data.sensors?.eye_y !== undefined) telemetry.eye_y = Number(data.sensors.eye_y)
-
-    if (data.pitch !== undefined) telemetry.pitch = Number(data.pitch)
-    else if (data.sensors?.pitch !== undefined) telemetry.pitch = Number(data.sensors.pitch)
-    else if (telemetry.eye_y !== undefined) telemetry.pitch = -telemetry.eye_y * 12
-
-    if (data.roll !== undefined) telemetry.roll = Number(data.roll)
-    else if (data.sensors?.roll !== undefined) telemetry.roll = Number(data.sensors.roll)
-    else if (telemetry.eye_x !== undefined) telemetry.roll = telemetry.eye_x * 12
-
-    if (data.ax !== undefined) telemetry.ax = Number(data.ax)
-    else if (data.sensors?.ax !== undefined) telemetry.ax = Number(data.sensors.ax)
-
-    if (data.ay !== undefined) telemetry.ay = Number(data.ay)
-    else if (data.sensors?.ay !== undefined) telemetry.ay = Number(data.sensors.ay)
-
-    if (data.az !== undefined) telemetry.az = Number(data.az)
-    else if (data.sensors?.az !== undefined) telemetry.az = Number(data.sensors.az)
-
-    if (data.free_heap !== undefined) telemetry.free_heap = Number(data.free_heap)
-    else if (data.hardware?.free_heap !== undefined) telemetry.free_heap = Number(data.hardware.free_heap)
-
-    if (data.uptime_s !== undefined) telemetry.uptime_s = Number(data.uptime_s)
-    else if (data.hardware?.uptime_s !== undefined) telemetry.uptime_s = Number(data.hardware.uptime_s)
-
-    if (data.offline_pending !== undefined) telemetry.offline_pending = Number(data.offline_pending)
-    else if (data.storage?.offline_pending !== undefined) telemetry.offline_pending = Number(data.storage.offline_pending)
-
-    if (data.device_emotion !== undefined) telemetry.device_emotion = String(data.device_emotion)
-    else if (data.emotion !== undefined) telemetry.device_emotion = String(data.emotion)
-
-    if (data.view_mode !== undefined) telemetry.view_mode = String(data.view_mode)
-
-    // Sincronización instantánea de view_mode desde el ESP32 / Backend
-    if (data.view_mode) {
-      const vm = String(data.view_mode).toUpperCase().trim()
-      if (vm === 'FACE' || vm === 'VIEW_PET_FACE') {
-        viewMode.value = 'FACE'
-      } else if (vm === 'HUD' || vm === 'VIEW_CIRCULAR_HUD') {
-        viewMode.value = 'HUD'
-      } else if (vm === '3D' || vm === 'VIEW_3D' || vm === 'DIGITAL_TWIN') {
-        viewMode.value = '3D'
-      }
+    if (Date.now() > manualGyroLockUntil) {
+      telemetry.value.eye_x = inEyeX
+      telemetry.value.eye_y = inEyeY
+      telemetry.value.roll = data.roll !== undefined
+        ? Number(data.roll)
+        : Math.max(-35, Math.min(35, Number((inEyeX * 3.5).toFixed(1))))
+      telemetry.value.pitch = data.pitch !== undefined
+        ? Number(data.pitch)
+        : Math.max(-30, Math.min(30, Number((-inEyeY * 3.5).toFixed(1))))
     }
 
-    // Mapeo y sincronización de emoción desde el ESP32 / Backend hacia telemetry.risk_status
-    const emotionRaw = data.device_emotion || data.emotion
-    if (emotionRaw) {
-      const e = String(emotionRaw).toUpperCase().trim()
-      if (e === 'OPTIMAL' || e === 'EMOTION_OPTIMAL' || e === 'HAPPY') {
-        telemetry.risk_status = 'OPTIMAL'
-      } else if (e === 'WARNING_PREDICTIVE' || e === 'EMOTION_PREDICTIVE_WARNING' || e === 'WARNING' || e === 'ALERT') {
-        telemetry.risk_status = 'WARNING_PREDICTIVE'
-      } else if (e === 'CRITICAL' || e === 'EMOTION_CRITICAL' || e === 'DANGER' || e === 'ERROR') {
-        telemetry.risk_status = 'CRITICAL'
-      } else if (e === 'RECOVERY' || e === 'EMOTION_RECOVERY' || e === 'RECOVERING') {
-        telemetry.risk_status = 'RECOVERY'
-      } else if (e === 'SLEEPING' || e === 'EMOTION_SLEEPING' || e === 'SLEEP') {
-        telemetry.risk_status = 'SLEEPING'
-      }
+    if (data.ax !== undefined) telemetry.value.ax = Number(data.ax)
+    else if (data.sensors?.ax !== undefined) telemetry.value.ax = Number(data.sensors.ax)
+
+    if (data.ay !== undefined) telemetry.value.ay = Number(data.ay)
+    else if (data.sensors?.ay !== undefined) telemetry.value.ay = Number(data.sensors.ay)
+
+    if (data.az !== undefined) telemetry.value.az = Number(data.az)
+    else if (data.sensors?.az !== undefined) telemetry.value.az = Number(data.sensors.az)
+
+    if (data.free_heap !== undefined) telemetry.value.free_heap = Number(data.free_heap)
+    else if (data.hardware?.free_heap !== undefined) telemetry.value.free_heap = Number(data.hardware.free_heap)
+
+    if (data.uptime_s !== undefined) telemetry.value.uptime_s = Number(data.uptime_s)
+    else if (data.hardware?.uptime_s !== undefined) telemetry.value.uptime_s = Number(data.hardware.uptime_s)
+
+    if (data.offline_pending !== undefined) telemetry.value.offline_pending = Number(data.offline_pending)
+    else if (data.storage?.offline_pending !== undefined) telemetry.value.offline_pending = Number(data.storage.offline_pending)
+
+    const rawEmotion = String(data.device_emotion || data.emotion || data.risk_status || 'OPTIMAL').toUpperCase()
+    const shaking = Boolean(data.is_shaking) || rawEmotion === 'DIZZY' || Math.sqrt(inEyeX * inEyeX + inEyeY * inEyeY) > 6.0
+
+    if (Date.now() > manualGyroLockUntil) {
+      telemetry.value.is_shaking = shaking
+      telemetry.value.device_emotion = shaking
+        ? 'DIZZY'
+        : (rawEmotion === 'PREDICTIVE_WARNING' ? 'WARNING_PREDICTIVE' : parseRiskEmotion(rawEmotion))
+    }
+
+    if (data.view_mode === 'FACE' || data.view_mode === 'HUD') {
+      telemetry.value.view_mode = data.view_mode
+    } else if (data.view_mode === 'VIEW_PET_FACE') {
+      telemetry.value.view_mode = 'FACE'
+    } else if (data.view_mode === 'VIEW_CIRCULAR_HUD') {
+      telemetry.value.view_mode = 'HUD'
     }
 
     const newPoint: HistoryPoint = {
       timestamp: data.timestamp || Date.now(),
-      ppm: Number(data.ppm || telemetry.ppm),
-      predicted_ppm_15m: Number(data.predicted_ppm_15m || telemetry.predicted_ppm_15m)
+      ppm: Number(data.ppm || telemetry.value.ppm),
+      predicted_ppm_15m: Number(data.predicted_ppm_15m || telemetry.value.predicted_ppm_15m)
     }
 
     const last = history.value[history.value.length - 1]
@@ -294,23 +374,25 @@ export function useAirGuardian() {
     }
   }
 
-  // Generador local de contingencia para modo quemado / offline
   let mockTrend = 1
   function runLocalMockStep() {
     if (operationMode.value !== 'LOCAL') return
-    let curPpm = telemetry.ppm
+    let curPpm = telemetry.value.ppm
     if (curPpm > 1200) mockTrend = -1
     if (curPpm < 415) mockTrend = 1
     curPpm = Math.round((curPpm + mockTrend * (12 + Math.random() * 20)) * 10) / 10
 
     const mockDelta = mockTrend * 18
     const mockPred = Math.round(curPpm + mockDelta * 10)
-    let mockRisk: 'OPTIMAL' | 'WARNING_PREDICTIVE' | 'CRITICAL' | 'RECOVERY' = 'OPTIMAL'
+    let mockRisk: TelemetryState['risk_status'] = 'OPTIMAL'
     if (curPpm > 1050) mockRisk = 'CRITICAL'
     else if (mockDelta > 20 || curPpm > 750) mockRisk = 'WARNING_PREDICTIVE'
     else if (mockDelta < -15) mockRisk = 'RECOVERY'
 
-    updateFromPayload({
+    const driftEyeX = Number((Math.sin(Date.now() * 0.0012) * 0.35).toFixed(2))
+    const driftEyeY = Number((Math.cos(Date.now() * 0.0015) * 0.25).toFixed(2))
+
+    applyLiveTelemetry({
       device_id: 'air-guardian-01',
       timestamp: Date.now(),
       ppm: curPpm,
@@ -324,14 +406,22 @@ export function useAirGuardian() {
       raw_adc: Math.round(curPpm * 1.45),
       raw_adc7: Math.round((curPpm / 75.0) * 450 + 200),
       mpu_connected: true,
-      eye_x: Math.round((Math.sin(Date.now() / 1500) * 1.2) * 10) / 10,
-      eye_y: Math.round((Math.cos(Date.now() / 2000) * 0.9) * 10) / 10,
+      eye_x: driftEyeX,
+      eye_y: driftEyeY,
       free_heap: 182000 + Math.floor(Math.random() * 4000),
-      uptime_s: (telemetry.uptime_s || 3600) + 2,
+      uptime_s: (telemetry.value.uptime_s || 3600) + 2,
       offline_pending: 0,
       device_emotion: mockRisk,
-      view_mode: viewMode.value
+      view_mode: telemetry.value.view_mode
     })
+
+    if (Date.now() > manualGyroLockUntil) {
+      telemetry.value.eye_x = driftEyeX
+      telemetry.value.eye_y = driftEyeY
+      telemetry.value.roll = Number((telemetry.value.eye_x * 3.5).toFixed(1))
+      telemetry.value.pitch = Number((-telemetry.value.eye_y * 3.5).toFixed(1))
+      telemetry.value.is_shaking = false
+    }
   }
 
   function startLocalMock() {
@@ -358,7 +448,7 @@ export function useAirGuardian() {
           body: JSON.stringify({ enable: true })
         })
       } catch {
-        // Backend no disponible, generador local activo
+        // Fallback local mock active
       }
     } else {
       isSimulatorRunning.value = false
@@ -399,13 +489,17 @@ export function useAirGuardian() {
 
       socket.onmessage = (event) => {
         try {
-          const msg = JSON.parse(event.data)
+          const msg = JSON.parse(event.data) as {
+            type?: string
+            payload?: RawTelemetryPayload | RawTelemetryPayload[]
+          }
           if ((msg.type === 'TELEMETRY_UPDATE' || msg.type === 'TELEMETRY_BATCH') && msg.payload) {
             const payload = Array.isArray(msg.payload) ? msg.payload[msg.payload.length - 1] : msg.payload
+            if (!payload) return
             if (operationMode.value === 'LIVE' && payload.source === 'simulator') {
-              return // Ignorar simulador si estamos en modo hardware 1-a-1
+              return
             }
-            updateFromPayload(payload)
+            applyLiveTelemetry(payload)
           }
         } catch (err) {
           console.error('Error parsing WS message', err)
@@ -434,18 +528,18 @@ export function useAirGuardian() {
     try {
       const res = await fetch(`${apiBase}/api/telemetry/live`)
       if (res.ok) {
-        const json = await res.json()
+        const json = (await res.json()) as { success?: boolean; data?: RawTelemetryPayload }
         if (json.success && json.data) {
           const rawTs = Number(json.data.timestamp)
           const ts = rawTs < 946684800000 ? Date.now() : rawTs
           const age = Date.now() - ts
           if (age < 15000 || rawTs < 946684800000) {
-            updateFromPayload({ ...json.data, timestamp: ts })
+            applyLiveTelemetry({ ...json.data, timestamp: ts })
           }
         }
       }
     } catch {
-      // Ignored
+      // Network error ignored during background poll
     }
   }
 
@@ -457,9 +551,12 @@ export function useAirGuardian() {
       }
       const res = await fetch(url)
       if (res.ok) {
-        const json = await res.json()
+        const json = (await res.json()) as {
+          success?: boolean
+          data?: Array<{ timestamp?: number; ppm?: number; predicted_ppm_15m?: number }>
+        }
         if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          history.value = json.data.map((item: any) => ({
+          history.value = json.data.map((item) => ({
             timestamp: Number(item.timestamp),
             ppm: Number(item.ppm),
             predicted_ppm_15m: Number(item.predicted_ppm_15m || item.ppm)
@@ -475,9 +572,9 @@ export function useAirGuardian() {
     try {
       const res = await fetch(`${apiBase}/api/sessions`)
       if (res.ok) {
-        const json = await res.json()
+        const json = (await res.json()) as { success?: boolean; data?: SessionData[] }
         if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          sessions.value = json.data.map((item: any) => ({
+          sessions.value = json.data.map((item) => ({
             ...item,
             id: String(item.session_id || item.id || `session-${item.start_time || Math.random()}`)
           }))
@@ -502,7 +599,7 @@ export function useAirGuardian() {
   async function updateSession(id: string, data: Partial<SessionData>) {
     if (!id) return false
     try {
-      const payload: Record<string, any> = {}
+      const payload: Partial<SessionData> = {}
       if (data.name !== undefined) payload.name = data.name.trim()
       if (data.description !== undefined) payload.description = data.description.trim()
       if (data.latitude !== undefined) payload.latitude = Number(data.latitude)
@@ -515,8 +612,7 @@ export function useAirGuardian() {
         body: JSON.stringify(payload)
       })
 
-      // Actualizar inmediatamente en estado local para reactividad instantánea
-      const idx = sessions.value.findIndex(s => (s.id || (s as any).session_id) === id)
+      const idx = sessions.value.findIndex((s) => (s.id || s.session_id) === id)
       if (idx !== -1) {
         const updated = [...sessions.value]
         updated[idx] = { ...updated[idx], ...payload }
@@ -530,7 +626,7 @@ export function useAirGuardian() {
       return false
     } catch (err) {
       console.error('Error updating session', err)
-      const idx = sessions.value.findIndex(s => (s.id || (s as any).session_id) === id)
+      const idx = sessions.value.findIndex((s) => (s.id || s.session_id) === id)
       if (idx !== -1) {
         sessions.value[idx] = { ...sessions.value[idx], ...data }
       }
@@ -541,14 +637,12 @@ export function useAirGuardian() {
   async function deleteSession(id: string) {
     if (!id) return false
     try {
-      // Si la sesión a eliminar estaba seleccionada, deseleccionar y refrescar historial
       if (selectedSessionId.value === id) {
         selectedSessionId.value = null
         await fetchHistory(null)
       }
 
-      // Eliminar de sessions.value inmediatamente
-      sessions.value = sessions.value.filter(s => (s.id || (s as any).session_id) !== id)
+      sessions.value = sessions.value.filter((s) => (s.id || s.session_id) !== id)
 
       const res = await fetch(`${apiBase}/api/sessions/${encodeURIComponent(id)}`, {
         method: 'DELETE'
@@ -570,23 +664,77 @@ export function useAirGuardian() {
   }
 
   function toggleViewMode() {
-    if (viewMode.value === 'FACE') {
-      viewMode.value = 'HUD'
-    } else if (viewMode.value === 'HUD') {
-      viewMode.value = '3D'
-    } else {
-      viewMode.value = 'FACE'
+    const nextMode: 'FACE' | 'HUD' = telemetry.value.view_mode === 'FACE' ? 'HUD' : 'FACE'
+    telemetry.value.view_mode = nextMode
+    if (operationMode.value === 'LIVE') {
+      fetch(`${apiBase}/api/telemetry/command`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          device_id: telemetry.value.device_id || 'air-guardian-01',
+          view_mode: nextMode
+        })
+      }).catch(() => {})
     }
-    fetch(`${apiBase}/api/telemetry/command`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        device_id: telemetry.device_id || 'air-guardian-01',
-        view_mode: viewMode.value
-      })
-    }).catch(() => {
-      // Backend offline o fallo de red capturado suavemente
-    })
+  }
+
+  function setManualGyro(eyeX: number, eyeY: number, shaking = false, durationMs = 4500) {
+    manualGyroLockUntil = Date.now() + durationMs
+    telemetry.value.eye_x = Number(eyeX.toFixed(2))
+    telemetry.value.eye_y = Number(eyeY.toFixed(2))
+    telemetry.value.roll = Number((eyeX * 3.5).toFixed(1))
+    telemetry.value.pitch = Number((-eyeY * 3.5).toFixed(1))
+    telemetry.value.is_shaking = shaking
+    if (shaking) {
+      telemetry.value.device_emotion = 'DIZZY'
+    } else if (telemetry.value.device_emotion === 'DIZZY') {
+      telemetry.value.device_emotion = telemetry.value.risk_status === 'DIZZY' ? 'OPTIMAL' : telemetry.value.risk_status
+    }
+  }
+
+  function triggerGyroShake() {
+    if (shakeTimer) {
+      clearInterval(shakeTimer)
+      shakeTimer = null
+    }
+    const durationMs = 2600
+    const startMs = Date.now()
+    manualGyroLockUntil = startMs + durationMs
+
+    const nextMode: 'FACE' | 'HUD' = telemetry.value.view_mode === 'FACE' ? 'HUD' : 'FACE'
+    telemetry.value.view_mode = nextMode
+    telemetry.value.is_shaking = true
+    telemetry.value.device_emotion = 'DIZZY'
+
+    let tick = 0
+    shakeTimer = setInterval(() => {
+      tick++
+      const elapsed = Date.now() - startMs
+      if (elapsed >= durationMs) {
+        if (shakeTimer) {
+          clearInterval(shakeTimer)
+          shakeTimer = null
+        }
+        telemetry.value.eye_x = 0
+        telemetry.value.eye_y = 0
+        telemetry.value.roll = 0
+        telemetry.value.pitch = 0
+        telemetry.value.is_shaking = false
+        telemetry.value.device_emotion =
+          telemetry.value.risk_status === 'DIZZY' ? 'OPTIMAL' : telemetry.value.risk_status
+        return
+      }
+
+      const decay = 1 - elapsed / durationMs
+      const sx = Math.sin(tick * 1.9) * 7.2 * decay
+      const sy = Math.cos(tick * 2.3) * 6.4 * decay
+      telemetry.value.eye_x = Number(sx.toFixed(2))
+      telemetry.value.eye_y = Number(sy.toFixed(2))
+      telemetry.value.roll = Number(Math.max(-35, Math.min(35, sx * 3.5)).toFixed(1))
+      telemetry.value.pitch = Number(Math.max(-30, Math.min(30, -sy * 3.5)).toFixed(1))
+      telemetry.value.is_shaking = true
+      telemetry.value.device_emotion = 'DIZZY'
+    }, 65)
   }
 
   onMounted(() => {
@@ -618,6 +766,7 @@ export function useAirGuardian() {
     if (reconnectTimer) clearTimeout(reconnectTimer)
     if (fallbackPollingTimer) clearInterval(fallbackPollingTimer)
     if (tickTimer) clearInterval(tickTimer)
+    if (shakeTimer) clearInterval(shakeTimer)
   })
 
   return {
@@ -635,6 +784,8 @@ export function useAirGuardian() {
     viewMode,
     setOperationMode,
     toggleViewMode,
+    setManualGyro,
+    triggerGyroShake,
     selectSession,
     updateSession,
     deleteSession,

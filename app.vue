@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Eye } from 'lucide-vue-next'
 import { useAirGuardian, type SessionData } from '~/composables/useAirGuardian'
 
 import CyberCommandHeader from '~/components/mecha/CyberCommandHeader.vue'
@@ -38,7 +37,7 @@ const {
   operationMode, hardwareStatus, effectiveRiskStatus,
   isModalOpen, viewMode,
   setOperationMode, toggleViewMode, selectSession, fetchSessions,
-  deleteSession
+  deleteSession, setManualGyro, triggerGyroShake
 } = useAirGuardian()
 
 function openEditModal(session: SessionData) {
@@ -46,15 +45,14 @@ function openEditModal(session: SessionData) {
   isEditModalOpen.value = true
 }
 
-async function handleDeleteSession(session: SessionData) {
-  const id = session.id || (session as any).session_id
+async function handleDeleteSession(session: SessionData & { session_id?: string | number }) {
+  const id = session.id || session.session_id
   if (id) await deleteSession(id)
 }
 </script>
 
 <template>
   <div class="h-screen max-h-screen overflow-hidden flex flex-col bg-[#030712] text-slate-100 font-sans p-2 sm:p-2.5 gap-2 select-none">
-    <!-- Barra de Comando Aeroespacial Cyber-Mecha -->
     <CyberCommandHeader
       class="shrink-0"
       :operation-mode="operationMode"
@@ -68,7 +66,6 @@ async function handleDeleteSession(session: SessionData) {
       @open-mark-location="isModalOpen = true"
     />
 
-    <!-- Alerta Temprana Predictiva Compacta -->
     <PredictionBanner
       :risk-status="effectiveRiskStatus"
       :predicted-ppm15m="telemetry.predicted_ppm_15m"
@@ -77,58 +74,38 @@ async function handleDeleteSession(session: SessionData) {
       class="shrink-0"
     />
 
-    <!-- Matriz Táctica Principal: Tri-Panel Grid 12 Columnas -->
     <main class="flex-1 min-h-0 w-full max-w-[1850px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-stretch overflow-hidden">
-      <!-- PANEL IZQUIERDO (lg:col-span-3): Sensores Químicos & Clima -->
       <section class="lg:col-span-3 h-full min-h-0 flex flex-col justify-between gap-2 overflow-hidden">
-        <SensorMq135Card
-          class="flex-1 min-h-0"
-          :ppm="telemetry.ppm"
-          :raw-adc="telemetry.raw_adc"
-          :delta-ppm="telemetry.delta_ppm_1m"
-        />
-        <SensorMq7Card
-          class="flex-1 min-h-0"
-          :co-ppm="telemetry.co_ppm"
-          :raw-adc="telemetry.raw_adc7"
-        />
-        <SensorDht11Card
-          class="flex-1 min-h-0"
-          :temperature="telemetry.temperature"
-          :humidity="telemetry.humidity"
-        />
+        <SensorMq135Card class="flex-1 min-h-0" :ppm="telemetry.ppm" :raw-adc="telemetry.raw_adc" :delta-ppm="telemetry.delta_ppm_1m" />
+        <SensorMq7Card class="flex-1 min-h-0" :co-ppm="telemetry.co_ppm" :raw-adc="telemetry.raw_adc7" />
+        <SensorDht11Card class="flex-1 min-h-0" :temperature="telemetry.temperature" :humidity="telemetry.humidity" />
       </section>
 
-      <!-- PANEL CENTRAL (lg:col-span-5): Núcleo Operativo Centinela & Gráfica Predictiva -->
       <section class="lg:col-span-5 h-full min-h-0 flex flex-col justify-between gap-2 overflow-hidden">
-        <!-- Visor Hexagonal Mecha de la Mascota Centinela -->
-        <div class="flex-1 min-h-0 relative bg-slate-900/70 border border-cyan-500/25 rounded-2xl p-1.5 sm:p-2 flex flex-col items-center justify-center shadow-[0_8px_32px_rgba(0,0,0,0.8)] overflow-hidden">
+        <div class="flex-[1.25] min-h-0 relative bg-slate-900/70 border border-cyan-500/25 rounded-2xl p-1.5 sm:p-2 flex flex-col items-center justify-center shadow-[0_8px_32px_rgba(0,0,0,0.8)] overflow-hidden">
           <MascotChamber
             :ppm="telemetry.ppm"
             :co-ppm="telemetry.co_ppm"
             :temperature="telemetry.temperature"
             :humidity="telemetry.humidity"
             :risk-status="effectiveRiskStatus"
-            :view-mode="viewMode"
+            :device-emotion="telemetry.device_emotion"
+            :view-mode="viewMode === 'HUD' ? 'HUD' : 'FACE'"
             :pitch="telemetry.pitch"
             :roll="telemetry.roll"
+            :eye-x="telemetry.eye_x"
+            :eye-y="telemetry.eye_y"
+            :is-shaking="telemetry.is_shaking"
+            :mpu-connected="telemetry.mpu_connected"
             :ax="telemetry.ax"
             :ay="telemetry.ay"
             :az="telemetry.az"
+            @toggle-screen-mode="toggleViewMode"
+            @shake-device="triggerGyroShake"
+            @open-3d-modal="isDigitalTwinModalOpen = true"
           />
-          <div class="w-full flex justify-center mt-1 shrink-0">
-            <button
-              type="button"
-              @click="toggleViewMode"
-              class="min-h-[30px] px-3 py-1 rounded-xl bg-slate-950/90 border border-cyan-500/40 hover:border-cyan-300 hover:bg-slate-900 text-[10px] font-mono font-bold text-cyan-300 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.15)] active:scale-95 w-full max-w-[240px]"
-            >
-              <Eye class="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-              <span class="truncate">MODO: {{ viewMode === 'FACE' ? 'CENTINELA EXPRESIVO' : (viewMode === 'HUD' ? 'TACÓMETRO HUD' : 'GEMELO 3D') }}</span>
-            </button>
-          </div>
         </div>
 
-        <!-- Serie Temporal Chart.js en Vivo -->
         <TimeSeriesChart
           class="flex-1 min-h-0"
           :history="history"
@@ -139,13 +116,18 @@ async function handleDeleteSession(session: SessionData) {
         />
       </section>
 
-      <!-- PANEL DERECHO (lg:col-span-4): Cinética, Hardware & Geolocalización -->
       <section class="lg:col-span-4 h-full min-h-0 flex flex-col justify-between gap-2 overflow-hidden">
         <SensorMpu6050Card
           class="flex-1 min-h-0"
           :mpu-connected="telemetry.mpu_connected"
           :eye-x="telemetry.eye_x"
           :eye-y="telemetry.eye_y"
+          :pitch="telemetry.pitch"
+          :roll="telemetry.roll"
+          :is-shaking="telemetry.is_shaking"
+          :device-emotion="telemetry.device_emotion"
+          @update-gyro="(x, y) => setManualGyro(x, y)"
+          @shake="triggerGyroShake"
         />
         <SystemEsp32TelemetryCard
           class="flex-1 min-h-0"
@@ -167,14 +149,18 @@ async function handleDeleteSession(session: SessionData) {
       </section>
     </main>
 
-    <!-- Modales Tácticos de Comando -->
     <MechaDigitalTwinModal
       v-if="isDigitalTwinModalOpen"
       :is-open="isDigitalTwinModalOpen"
       :ppm="telemetry.ppm"
       :risk-status="effectiveRiskStatus"
+      :device-emotion="telemetry.device_emotion"
+      :screen-view-mode="viewMode === 'HUD' ? 'HUD' : 'FACE'"
       :pitch="telemetry.pitch"
       :roll="telemetry.roll"
+      :eye-x="telemetry.eye_x"
+      :eye-y="telemetry.eye_y"
+      :is-shaking="telemetry.is_shaking"
       :ax="telemetry.ax"
       :ay="telemetry.ay"
       :az="telemetry.az"
@@ -182,7 +168,7 @@ async function handleDeleteSession(session: SessionData) {
       :humidity="telemetry.humidity"
       @close="isDigitalTwinModalOpen = false"
     />
-    <NewCampaignModal v-if="isModalOpen" :is-open="isModalOpen" @close="isModalOpen = false" @created="fetchSessions" />
+    <NewCampaignModal v-if="isModalOpen" :is-open="isModalOpen" @created="fetchSessions" @close="isModalOpen = false" />
     <EditLocationModal v-if="isEditModalOpen" :is-open="isEditModalOpen" :session="editingSession" @close="isEditModalOpen = false" @saved="() => { isEditModalOpen = false; fetchSessions(); }" />
     <AcademicAuditoriumModal v-if="isAcademicModalOpen" :is-open="isAcademicModalOpen" :current-sensor-ppm="telemetry.ppm" @close="isAcademicModalOpen = false" />
     <UsbWifiModal v-if="isUsbModalOpen" :is-open="isUsbModalOpen" @close="isUsbModalOpen = false" />

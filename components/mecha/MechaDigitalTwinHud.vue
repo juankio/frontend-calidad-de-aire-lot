@@ -1,16 +1,20 @@
 <script setup lang="ts">
-import { RotateCcw, Box, Compass, Layers, ShieldCheck, Activity } from 'lucide-vue-next'
+import { RotateCcw, Box, Compass, Layers, ShieldCheck, Activity, Eye } from 'lucide-vue-next'
 
-const props = defineProps<{
+withDefaults(defineProps<{
   wireframe: boolean
+  xray?: boolean
   clamshellDist: number
   autoRotate: boolean
   displayPitch: string
   displayRoll: string
-}>()
+}>(), {
+  xray: false
+})
 
 const emit = defineEmits<{
   (e: 'update:wireframe', val: boolean): void
+  (e: 'update:xray', val: boolean): void
   (e: 'update:clamshellDist', val: number): void
   (e: 'update:autoRotate', val: boolean): void
   (e: 'resetCamera'): void
@@ -33,7 +37,6 @@ const emit = defineEmits<{
         </button>
       </div>
 
-      <!-- Slider Despiece Clamshell -->
       <div class="bg-slate-950/80 border border-cyan-500/30 rounded-xl p-2.5 space-y-2">
         <div class="flex items-center justify-between text-[10.5px]">
           <span class="text-slate-300 font-bold flex items-center gap-1.5">
@@ -56,7 +59,6 @@ const emit = defineEmits<{
         </div>
       </div>
 
-      <!-- Switches Wireframe & Auto-Giro -->
       <div class="grid grid-cols-2 gap-2">
         <button
           type="button"
@@ -79,7 +81,16 @@ const emit = defineEmits<{
         </button>
       </div>
 
-      <!-- Inclinación Inercial IMU -->
+      <button
+        type="button"
+        @click="emit('update:xray', !xray)"
+        class="w-full p-2 rounded-xl border text-[10px] font-bold flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
+        :class="xray ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]' : 'bg-slate-950/80 border-cyan-500/30 text-slate-300 hover:text-white'"
+      >
+        <Eye class="w-4 h-4" />
+        <span>{{ xray ? 'RAYOS-X / COMPONENTES INTERNOS: ON' : 'RAYOS-X / COMPONENTES INTERNOS' }}</span>
+      </button>
+
       <div class="bg-slate-950/80 border border-cyan-500/30 rounded-xl p-2.5 space-y-1.5">
         <div class="flex items-center justify-between text-[10px] text-slate-300 font-bold">
           <span class="flex items-center gap-1.5">
@@ -99,7 +110,6 @@ const emit = defineEmits<{
         </div>
       </div>
 
-      <!-- Materiales Mil-Spec -->
       <div class="bg-slate-950/80 border border-cyan-500/20 rounded-xl p-2.5 space-y-1.5 text-[9px] text-slate-400">
         <div class="font-bold text-slate-300 text-[10px] mb-1">Capas FDM Mil-Spec:</div>
         <div class="flex items-center justify-between">
