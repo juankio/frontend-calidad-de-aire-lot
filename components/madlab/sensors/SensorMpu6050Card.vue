@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Compass, Radio, CheckCircle2, XCircle, AlertTriangle, Vibrate } from 'lucide-vue-next'
+import {
+  getMpuShakeButtonLabel,
+  getMpuOrientationLabel,
+  computeMpuPupilStyle,
+  computePointerGyroAngles
+} from '~/utils/mpu6050Helper'
 
 const props = defineProps<{
   mpuConnected?: boolean; eyeX?: number; eyeY?: number; pitch?: number; roll?: number
@@ -24,46 +30,19 @@ const isDizzyOrShaking = computed(() =>
   Boolean(props.isShaking) || ['DIZZY', 'NAUSEA', 'VOMIT', 'WIPER'].includes(String(props.deviceEmotion ?? ''))
 )
 
-const shakeButtonLabel = computed(() => {
-  const emo = String(props.deviceEmotion ?? '')
-  if (emo === 'DIZZY') return 'Sacudir (1/3 Mareo)'
-  if (emo === 'NAUSEA') return 'Sacudir (2/3 Náusea)'
-  if (emo === 'VOMIT' || emo === 'WIPER') return 'Sacudir (3/3 ¡Vómito!)'
-  return 'Sacudir (Mareo→Vómito)'
-})
-
-const orientationStatusLabel = computed(() => {
-  const emo = String(props.deviceEmotion ?? '')
-  if (emo === 'VOMIT') return '🤮 ¡Vómito en Pantalla!'
-  if (emo === 'WIPER') return '🧽 Limpiaparabrisas...'
-  if (emo === 'NAUSEA') return '🤢 Aguantando Vómito'
-  if (isDizzyOrShaking.value) return '🌀 ¡Sacudida • Mareado!'
-  if (emo === 'BABY_ROCKING') return '🍼 Meciendo Bebé (±18°)'
-  if (emo === 'BABY_SLEEP') return '😪 Dormido (Burbuja Moco)'
-  if (Math.abs(rollVal.value) > 135 || emo === 'UPSIDE_DOWN') return '🙃 De Cabeza (180°)'
-  if (Math.abs(rollVal.value) > 45) return `Inclinación Lateral (${Math.round(rollVal.value)}°)`
-  return 'Inclinación Estable'
-})
-
-const pupilPos = computed(() => {
-  const rawPx = (Math.max(-180, Math.min(180, rollVal.value)) / 180) * 22
-  const rawPy = (Math.max(-90, Math.min(90, pitchVal.value)) / 90) * 22
-  const dist = Math.hypot(rawPx, rawPy)
-  const scale = dist > 22 ? 22 / dist : 1
-  return { transform: `translate(${(rawPx * scale).toFixed(1)}px, ${(rawPy * scale).toFixed(1)}px)` }
-})
+const shakeButtonLabel = computed(() => getMpuShakeButtonLabel(String(props.deviceEmotion ?? '')))
+const orientationStatusLabel = computed(() =>
+  getMpuOrientationLabel(String(props.deviceEmotion ?? ''), isDizzyOrShaking.value, rollVal.value)
+)
+const pupilPos = computed(() => computeMpuPupilStyle(rollVal.value, pitchVal.value))
 
 const radarRef = ref<HTMLElement | null>(null)
 const isDragging = ref(false)
 
 function updateGyroFromEvent(e: PointerEvent) {
   if (!radarRef.value) return
-  const rect = radarRef.value.getBoundingClientRect()
-  const halfW = rect.width / 2 || 34
-  const halfH = rect.height / 2 || 34
-  const normX = Math.max(-1, Math.min(1, (e.clientX - (rect.left + halfW)) / halfW))
-  const normY = Math.max(-1, Math.min(1, (e.clientY - (rect.top + halfH)) / halfH))
-  emit('updateGyro', Number((normX * 20).toFixed(1)), Number((normY * 10).toFixed(1)))
+  const { eyeX, eyeY } = computePointerGyroAngles(e, radarRef.value.getBoundingClientRect())
+  emit('updateGyro', eyeX, eyeY)
 }
 
 function toggleUpsideDownTest() {
@@ -138,15 +117,11 @@ function onPointerUp() {
         <div class="bg-slate-950/80 border border-cyan-500/20 rounded-lg p-1.5 space-y-0.5">
           <div class="flex justify-between items-center text-[8.5px]">
             <span class="text-slate-400">Roll (Lado):</span>
-            <span class="font-bold text-cyan-300">
-              {{ rollDeg >= 0 ? `+${rollDeg.toFixed(1)}°` : `${rollDeg.toFixed(1)}°` }}
-            </span>
+            <span class="font-bold text-cyan-300">{{ rollDeg >= 0 ? `+${rollDeg.toFixed(1)}°` : `${rollDeg.toFixed(1)}°` }}</span>
           </div>
           <div class="flex justify-between items-center text-[8.5px]">
             <span class="text-slate-400">Pitch (Frente):</span>
-            <span class="font-bold text-cyan-300">
-              {{ pitchDeg >= 0 ? `+${pitchDeg.toFixed(1)}°` : `${pitchDeg.toFixed(1)}°` }}
-            </span>
+            <span class="font-bold text-cyan-300">{{ pitchDeg >= 0 ? `+${pitchDeg.toFixed(1)}°` : `${pitchDeg.toFixed(1)}°` }}</span>
           </div>
         </div>
 
@@ -160,32 +135,14 @@ function onPointerUp() {
         </div>
 
         <div class="grid grid-cols-3 gap-1">
-          <button
-            type="button"
-            @click="emit('calibrate')"
-            class="w-full py-1 px-1 rounded-lg bg-cyan-950/60 hover:bg-cyan-900/70 border border-cyan-500/40 text-cyan-300 text-[7.5px] font-mono font-bold flex items-center justify-center gap-0.5 transition cursor-pointer active:scale-95"
-            title="Calibrar posición actual como 0.0°"
-          >
-            <Compass class="w-2.5 h-2.5 shrink-0" />
-            <span>0°</span>
+          <button type="button" @click="emit('calibrate')" class="w-full py-1 px-1 rounded-lg bg-cyan-950/60 hover:bg-cyan-900/70 border border-cyan-500/40 text-cyan-300 text-[7.5px] font-mono font-bold flex items-center justify-center gap-0.5 transition cursor-pointer active:scale-95" title="Calibrar posición actual como 0.0°">
+            <Compass class="w-2.5 h-2.5 shrink-0" /><span>0°</span>
           </button>
-          <button
-            type="button"
-            @click="toggleUpsideDownTest"
-            class="w-full py-1 px-1 rounded-lg border text-[7.5px] font-mono font-bold flex items-center justify-center gap-0.5 transition cursor-pointer active:scale-95"
-            :class="Math.abs(rollVal) > 135 ? 'bg-amber-500/25 border-amber-400/80 text-amber-200' : 'bg-slate-950/80 hover:bg-slate-900 border-amber-500/40 text-amber-300'"
-            title="Probar rotación 180° De Cabeza"
-          >
+          <button type="button" @click="toggleUpsideDownTest" class="w-full py-1 px-1 rounded-lg border text-[7.5px] font-mono font-bold flex items-center justify-center gap-0.5 transition cursor-pointer active:scale-95" :class="Math.abs(rollVal) > 135 ? 'bg-amber-500/25 border-amber-400/80 text-amber-200' : 'bg-slate-950/80 hover:bg-slate-900 border-amber-500/40 text-amber-300'" title="Probar rotación 180° De Cabeza">
             <span>180°</span>
           </button>
-          <button
-            type="button"
-            @click="emit('shake')"
-            class="w-full py-1 px-1 rounded-lg bg-fuchsia-950/60 hover:bg-fuchsia-900/70 border border-fuchsia-500/40 text-fuchsia-300 text-[7px] font-mono font-bold flex items-center justify-center gap-0.5 transition cursor-pointer active:scale-95"
-            title="Sacudir repetidamente: 1x Mareo -> 2x Náusea -> 3x Vómito + Limpiaparabrisas"
-          >
-            <Vibrate class="w-2.5 h-2.5 shrink-0" />
-            <span class="truncate">{{ shakeButtonLabel }}</span>
+          <button type="button" @click="emit('shake')" class="w-full py-1 px-1 rounded-lg bg-fuchsia-950/60 hover:bg-fuchsia-900/70 border border-fuchsia-500/40 text-fuchsia-300 text-[7px] font-mono font-bold flex items-center justify-center gap-0.5 transition cursor-pointer active:scale-95" title="Sacudir repetidamente: 1x Mareo -> 2x Náusea -> 3x Vómito + Limpiaparabrisas">
+            <Vibrate class="w-2.5 h-2.5 shrink-0" /><span class="truncate">{{ shakeButtonLabel }}</span>
           </button>
         </div>
       </div>
@@ -196,7 +153,6 @@ function onPointerUp() {
         <div class="text-[7px] text-slate-400">Línea SDA</div>
         <div class="text-[10.5px] font-bold text-cyan-300 leading-tight">GPIO 21</div>
       </div>
-
       <div class="bg-slate-950/80 border border-cyan-500/20 rounded-lg p-1">
         <div class="text-[7px] text-slate-400">Línea SCL</div>
         <div class="text-[10.5px] font-bold text-cyan-300 leading-tight">GPIO 22</div>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
 import { X, Box, Sparkles } from 'lucide-vue-next'
-import anime from 'animejs'
+import { animateModalOpenTransition, animateModalCloseTransition } from '~/utils/modalAnimHelper'
 import MechaDigitalTwin from './MechaDigitalTwin.vue'
 import MechaDigitalTwinHud from './MechaDigitalTwinHud.vue'
 
@@ -60,37 +60,25 @@ const displayRoll = computed(() => {
 })
 
 function handleResetCamera() {
-  if (twinRef.value?.resetCamera) {
-    twinRef.value.resetCamera()
-  }
+  if (twinRef.value?.resetCamera) twinRef.value.resetCamera()
 }
 
 async function animateOpen() {
   await nextTick()
-  if (!modalCardRef.value || !backdropRef.value) return
-  anime.remove([backdropRef.value, modalCardRef.value])
-  anime({ targets: backdropRef.value, opacity: [0, 1], duration: 240, easing: 'easeOutQuad' })
-  anime({ targets: modalCardRef.value, opacity: [0, 1], scale: [0.95, 1], translateY: [18, 0], duration: 320, easing: 'cubicBezier(0.16, 1, 0.3, 1)' })
+  animateModalOpenTransition(backdropRef.value, modalCardRef.value, {
+    backdropDuration: 240,
+    cardDuration: 320,
+    translateY: 18,
+    initialScale: 0.95
+  })
 }
 
 function handleClose() {
   if (isClosing.value) return
-  if (!modalCardRef.value || !backdropRef.value) {
-    emit('close')
-    return
-  }
   isClosing.value = true
-  anime.remove([modalCardRef.value, backdropRef.value])
-  anime({ targets: modalCardRef.value, opacity: [1, 0], scale: [0.95, 1], translateY: [0, 15], duration: 180, easing: 'easeInQuad' })
-  anime({
-    targets: backdropRef.value,
-    opacity: [1, 0],
-    duration: 200,
-    easing: 'easeInQuad',
-    complete: () => {
-      isClosing.value = false
-      emit('close')
-    }
+  animateModalCloseTransition(backdropRef.value, modalCardRef.value, () => {
+    isClosing.value = false
+    emit('close')
   })
 }
 
@@ -123,9 +111,7 @@ watch(() => props.isOpen, (val) => {
               <h2 class="font-scifi font-bold text-sm sm:text-base text-white tracking-wider flex items-center gap-1.5">
                 <span class="text-cyan-400">GEMELO DIGITAL 3D</span> • CYBER-MECHA
               </h2>
-              <span class="px-1.5 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/40 text-[9px] font-mono text-cyan-300 font-bold hidden sm:inline">
-                TELEMETRÍA CAD STL
-              </span>
+              <span class="px-1.5 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/40 text-[9px] font-mono text-cyan-300 font-bold hidden sm:inline">TELEMETRÍA CAD STL</span>
             </div>
             <p class="text-[9.5px] font-mono text-slate-400">Inspección de Hardware FDM • Simulador Dinámico Inercial</p>
           </div>
@@ -152,24 +138,12 @@ watch(() => props.isOpen, (val) => {
 
           <MechaDigitalTwin
             ref="twinRef"
-            :ppm="ppm"
-            :temperature="temperature"
-            :humidity="humidity"
-            :risk-status="riskStatus"
-            :device-emotion="deviceEmotion"
-            :screen-view-mode="screenViewMode"
-            :pitch="pitch"
-            :roll="roll"
-            :eye-x="eyeX"
-            :eye-y="eyeY"
-            :is-shaking="isShaking"
-            :ax="ax"
-            :ay="ay"
-            :az="az"
-            :wireframe="isWireframe"
-            :xray="isXray"
-            :clamshell-distance="clamshellDist"
-            :auto-rotate="autoRotateActive"
+            :ppm="ppm" :temperature="temperature" :humidity="humidity"
+            :risk-status="riskStatus" :device-emotion="deviceEmotion" :screen-view-mode="screenViewMode"
+            :pitch="pitch" :roll="roll" :eye-x="eyeX" :eye-y="eyeY"
+            :is-shaking="isShaking" :ax="ax" :ay="ay" :az="az"
+            :wireframe="isWireframe" :xray="isXray"
+            :clamshell-distance="clamshellDist" :auto-rotate="autoRotateActive"
           />
 
           <div class="absolute bottom-3 right-3 pointer-events-none font-mono text-[9px] text-cyan-300/80 bg-slate-950/80 border border-cyan-500/30 px-2.5 py-1 rounded-lg backdrop-blur-md flex items-center gap-2">

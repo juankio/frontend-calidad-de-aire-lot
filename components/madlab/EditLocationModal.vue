@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { Pencil, X, Check, MapPin, Compass } from 'lucide-vue-next'
+import { Pencil, X, Check, Compass } from 'lucide-vue-next'
 import type { SessionData } from '~/composables/useAirGuardian'
 
 const props = defineProps<{
@@ -92,64 +92,34 @@ async function handleSave() {
 <template>
   <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/85 backdrop-blur-md pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] ps-[max(0.75rem,env(safe-area-inset-left))] pe-[max(0.75rem,env(safe-area-inset-right))]">
     <div class="bg-[#070b14]/95 border border-cyan-500/40 rounded-2xl w-full max-w-md max-h-[90dvh] overflow-y-auto overscroll-contain p-4 sm:p-5 shadow-[0_16px_40px_rgba(0,0,0,0.95),0_0_30px_rgba(6,182,212,0.15)] space-y-3 relative select-none font-mono">
-      <!-- Esquinas Tácticas HUD -->
-      <svg class="absolute top-1.5 left-1.5 w-3.5 h-3.5 text-cyan-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none">
-        <path d="M1 13V3C1 1.89543 1.89543 1 3 1H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-      </svg>
-      <svg class="absolute top-1.5 right-1.5 w-3.5 h-3.5 text-cyan-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none">
-        <path d="M13 13V3C13 1.89543 12.1046 1 11 1H1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-      </svg>
-      <svg class="absolute bottom-1.5 left-1.5 w-3.5 h-3.5 text-cyan-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none">
-        <path d="M1 1V11C1 12.1046 1.89543 13 3 13H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-      </svg>
-      <svg class="absolute bottom-1.5 right-1.5 w-3.5 h-3.5 text-cyan-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none">
-        <path d="M13 1V11C13 12.1046 12.1046 13 11 13H1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-      </svg>
+      <svg class="absolute top-1.5 left-1.5 w-3.5 h-3.5 text-cyan-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none"><path d="M1 13V3C1 1.89543 1.89543 1 3 1H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
+      <svg class="absolute top-1.5 right-1.5 w-3.5 h-3.5 text-cyan-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none"><path d="M13 13V3C13 1.89543 12.1046 1 11 1H1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
+      <svg class="absolute bottom-1.5 left-1.5 w-3.5 h-3.5 text-cyan-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none"><path d="M1 1V11C1 12.1046 1.89543 13 3 13H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
+      <svg class="absolute bottom-1.5 right-1.5 w-3.5 h-3.5 text-cyan-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none"><path d="M13 1V11C13 12.1046 12.1046 13 11 13H1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
 
-      <!-- Cabecera de Calibración Táctica -->
       <div class="flex items-center justify-between border-b border-cyan-500/20 pb-2 px-1 sm:px-2">
         <h3 class="text-xs sm:text-sm font-scifi font-bold text-white flex items-center gap-2">
           <Pencil class="w-4 h-4 text-cyan-400 shrink-0" />
           <span>CALIBRAR PUNTO TÁCTICO</span>
         </h3>
-        <button
-          type="button"
-          @click="emit('close')"
-          aria-label="Cerrar modal"
-          class="min-h-[40px] min-w-[40px] flex items-center justify-center text-slate-400 hover:text-cyan-200 transition cursor-pointer rounded-lg hover:bg-slate-900 active:scale-90"
-        >
+        <button type="button" @click="emit('close')" aria-label="Cerrar modal" class="min-h-[40px] min-w-[40px] flex items-center justify-center text-slate-400 hover:text-cyan-200 transition cursor-pointer rounded-lg hover:bg-slate-900 active:scale-90">
           <X class="w-4 h-4" />
         </button>
       </div>
 
       <form @submit.prevent="handleSave" class="space-y-2.5 font-mono px-0.5 text-xs">
-        <div v-if="errorMessage" class="p-2 rounded-xl bg-rose-950/80 border border-rose-800 text-rose-300 text-[10px]">
-          {{ errorMessage }}
-        </div>
+        <div v-if="errorMessage" class="p-2 rounded-xl bg-rose-950/80 border border-rose-800 text-rose-300 text-[10px]">{{ errorMessage }}</div>
 
         <div>
           <label class="block text-[11px] font-bold text-slate-200 mb-0.5">Nombre de la Ubicación</label>
-          <input
-            v-model="name"
-            type="text"
-            required
-            minlength="2"
-            maxlength="120"
-            class="w-full bg-slate-900 border border-cyan-500/30 rounded-xl px-3 py-2 sm:py-1.5 text-base sm:text-xs text-white placeholder-slate-600 focus:border-cyan-400 focus:outline-none font-mono"
-          />
+          <input v-model="name" type="text" required minlength="2" maxlength="120" class="w-full bg-slate-900 border border-cyan-500/30 rounded-xl px-3 py-2 sm:py-1.5 text-base sm:text-xs text-white placeholder-slate-600 focus:border-cyan-400 focus:outline-none font-mono" />
         </div>
 
         <div>
           <label class="block text-[11px] font-bold text-slate-200 mb-0.5">Notas del Entorno / Descripción</label>
-          <input
-            v-model="description"
-            type="text"
-            maxlength="500"
-            class="w-full bg-slate-900 border border-cyan-500/30 rounded-xl px-3 py-2 sm:py-1.5 text-base sm:text-xs text-white placeholder-slate-600 focus:border-cyan-400 focus:outline-none font-mono"
-          />
+          <input v-model="description" type="text" maxlength="500" class="w-full bg-slate-900 border border-cyan-500/30 rounded-xl px-3 py-2 sm:py-1.5 text-base sm:text-xs text-white placeholder-slate-600 focus:border-cyan-400 focus:outline-none font-mono" />
         </div>
 
-        <!-- Presets rápidos de Villavicencio -->
         <div>
           <span class="block text-[10px] text-slate-400 mb-1 flex items-center gap-1 font-mono">
             <Compass class="w-3.5 h-3.5 text-cyan-400 shrink-0" />
@@ -169,48 +139,23 @@ async function handleSave() {
           </div>
         </div>
 
-        <!-- Coordenadas Manuales y Radio -->
         <div class="grid grid-cols-3 gap-2 font-mono">
           <div>
             <label class="block text-[10px] text-slate-400 mb-0.5">Latitud</label>
-            <input
-              v-model="latitude"
-              type="number"
-              step="0.0001"
-              required
-              class="w-full bg-slate-900 border border-cyan-500/30 rounded-xl px-2.5 py-2 sm:py-1 text-base sm:text-xs text-white focus:border-cyan-400 focus:outline-none font-mono"
-            />
+            <input v-model="latitude" type="number" step="0.0001" required class="w-full bg-slate-900 border border-cyan-500/30 rounded-xl px-2.5 py-2 sm:py-1 text-base sm:text-xs text-white focus:border-cyan-400 focus:outline-none font-mono" />
           </div>
           <div>
             <label class="block text-[10px] text-slate-400 mb-0.5">Longitud</label>
-            <input
-              v-model="longitude"
-              type="number"
-              step="0.0001"
-              required
-              class="w-full bg-slate-900 border border-cyan-500/30 rounded-xl px-2.5 py-2 sm:py-1 text-base sm:text-xs text-white focus:border-cyan-400 focus:outline-none font-mono"
-            />
+            <input v-model="longitude" type="number" step="0.0001" required class="w-full bg-slate-900 border border-cyan-500/30 rounded-xl px-2.5 py-2 sm:py-1 text-base sm:text-xs text-white focus:border-cyan-400 focus:outline-none font-mono" />
           </div>
           <div>
             <label class="block text-[10px] text-slate-400 mb-0.5">Radio (m)</label>
-            <input
-              v-model="radiusMeters"
-              type="number"
-              step="5"
-              min="10"
-              max="50000"
-              required
-              class="w-full bg-slate-900 border border-cyan-500/30 rounded-xl px-2.5 py-2 sm:py-1 text-base sm:text-xs text-white focus:border-cyan-400 focus:outline-none font-mono"
-            />
+            <input v-model="radiusMeters" type="number" step="5" min="10" max="50000" required class="w-full bg-slate-900 border border-cyan-500/30 rounded-xl px-2.5 py-2 sm:py-1 text-base sm:text-xs text-white focus:border-cyan-400 focus:outline-none font-mono" />
           </div>
         </div>
 
         <div class="flex items-center justify-end gap-2 pt-2.5 border-t border-cyan-500/20 font-mono">
-          <button
-            type="button"
-            @click="emit('close')"
-            class="min-h-[40px] px-3.5 py-1.5 rounded-xl text-xs text-slate-400 hover:text-slate-200 transition cursor-pointer"
-          >
+          <button type="button" @click="emit('close')" class="min-h-[40px] px-3.5 py-1.5 rounded-xl text-xs text-slate-400 hover:text-slate-200 transition cursor-pointer">
             Cancelar
           </button>
           <button

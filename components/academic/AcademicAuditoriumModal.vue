@@ -3,6 +3,11 @@ import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { GraduationCap, X, BookOpen, Activity, Table } from 'lucide-vue-next'
 import anime from 'animejs'
 import { useNumericalAcademic } from '~/composables/useNumericalAcademic'
+import {
+  isReducedMotionPreferred,
+  animateModalOpenTransition,
+  animateModalCloseTransition
+} from '~/utils/modalAnimHelper'
 import DifferentialEquationsTab from './DifferentialEquationsTab.vue'
 import NumericalSimulationTab from './NumericalSimulationTab.vue'
 import ErrorAnalysisTab from './ErrorAnalysisTab.vue'
@@ -32,17 +37,15 @@ const tabs = [
   { id: 'ERRORS' as const, label: '3. Análisis de Errores & LaTeX', icon: Table }
 ]
 
-const isReducedMotion = () => typeof window !== 'undefined' && (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)
-
-// Orquestación fluida de apertura del modal con Anime.js
 async function animateOpen() {
   await nextTick()
-  if (!backdropRef.value || !modalCardRef.value || isReducedMotion()) return
-
-  anime.remove([backdropRef.value, modalCardRef.value])
-  anime({ targets: backdropRef.value, opacity: [0, 1], duration: 260, easing: 'easeOutQuad' })
-  anime({ targets: modalCardRef.value, opacity: [0, 1], scale: [0.93, 1], translateY: [20, 0], duration: 380, easing: 'cubicBezier(0.16, 1, 0.3, 1)' })
-
+  if (isReducedMotionPreferred()) return
+  animateModalOpenTransition(backdropRef.value, modalCardRef.value, {
+    backdropDuration: 260,
+    cardDuration: 380,
+    translateY: 20,
+    initialScale: 0.93
+  })
   const activeBtn = tabButtonsRef.value[activeTab.value]
   if (activeBtn) {
     anime({
@@ -53,28 +56,20 @@ async function animateOpen() {
   }
 }
 
-// Cierre elegante y reactivo sin lag
 function handleClose() {
   if (isClosing.value) return
-  if (isReducedMotion() || !modalCardRef.value || !backdropRef.value) {
-    emit('close')
-    return
-  }
-
   isClosing.value = true
-  anime.remove([modalCardRef.value, backdropRef.value])
-  anime({ targets: modalCardRef.value, opacity: [1, 0], scale: [1, 0.95], translateY: [0, 14], duration: 180, easing: 'easeInQuad' })
-  anime({
-    targets: backdropRef.value, opacity: [1, 0], duration: 200, easing: 'easeInQuad',
-    complete: () => { isClosing.value = false; emit('close') }
+  animateModalCloseTransition(backdropRef.value, modalCardRef.value, () => {
+    isClosing.value = false
+    emit('close')
   })
 }
 
-// Transición de pestañas reactiva y micro-interacciones de botones
 watch(activeTab, async (newTab) => {
   await nextTick()
+  if (isReducedMotionPreferred()) return
   const btnEl = tabButtonsRef.value[newTab]
-  if (btnEl && !isReducedMotion()) {
+  if (btnEl) {
     anime.remove(btnEl)
     anime({
       targets: btnEl,
@@ -83,8 +78,7 @@ watch(activeTab, async (newTab) => {
       duration: 340, easing: 'easeOutCubic'
     })
   }
-
-  if (tabContentRef.value && !isReducedMotion()) {
+  if (tabContentRef.value) {
     anime.remove(tabContentRef.value)
     anime({ targets: tabContentRef.value, opacity: [0, 1], translateY: [8, 0], duration: 280, easing: 'cubicBezier(0.22, 1, 0.36, 1)' })
   }
@@ -114,21 +108,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeyDown))
       ref="modalCardRef"
       class="bg-[#070b14]/95 border border-purple-500/40 rounded-2xl w-full max-w-4xl h-[92dvh] sm:h-[88vh] max-h-[850px] flex flex-col shadow-[0_25px_70px_rgba(0,0,0,0.95),0_0_35px_rgba(168,85,247,0.15)] relative select-none overflow-hidden font-mono"
     >
-      <!-- Esquinas Tácticas HUD -->
-      <svg class="absolute top-1.5 left-1.5 w-3.5 h-3.5 text-purple-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none">
-        <path d="M1 13V3C1 1.89543 1.89543 1 3 1H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-      </svg>
-      <svg class="absolute top-1.5 right-1.5 w-3.5 h-3.5 text-purple-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none">
-        <path d="M13 13V3C13 1.89543 12.1046 1 11 1H1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-      </svg>
-      <svg class="absolute bottom-1.5 left-1.5 w-3.5 h-3.5 text-purple-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none">
-        <path d="M1 1V11C1 12.1046 1.89543 13 3 13H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-      </svg>
-      <svg class="absolute bottom-1.5 right-1.5 w-3.5 h-3.5 text-purple-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none">
-        <path d="M13 1V11C13 12.1046 12.1046 13 11 13H1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-      </svg>
+      <svg class="absolute top-1.5 left-1.5 w-3.5 h-3.5 text-purple-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none"><path d="M1 13V3C1 1.89543 1.89543 1 3 1H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
+      <svg class="absolute top-1.5 right-1.5 w-3.5 h-3.5 text-purple-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none"><path d="M13 13V3C13 1.89543 12.1046 1 11 1H1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
+      <svg class="absolute bottom-1.5 left-1.5 w-3.5 h-3.5 text-purple-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none"><path d="M1 1V11C1 12.1046 1.89543 13 3 13H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
+      <svg class="absolute bottom-1.5 right-1.5 w-3.5 h-3.5 text-purple-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none"><path d="M13 1V11C13 12.1046 12.1046 13 11 13H1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
 
-      <!-- Cabecera Universitaria Táctica -->
       <div class="px-2.5 sm:px-4 py-2 sm:py-3 border-b border-purple-500/20 flex items-center justify-between shrink-0 bg-slate-950/80 pr-2 sm:pr-4">
         <div class="flex items-center gap-2 sm:gap-2.5 min-w-0 pr-2">
           <div class="p-1.5 sm:p-2 rounded-xl bg-purple-950/80 border border-purple-500/40 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.25)] shrink-0">
@@ -137,9 +121,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeyDown))
           <div class="min-w-0">
             <h3 class="text-xs sm:text-base font-scifi font-bold text-white flex items-center gap-1.5 sm:gap-2 truncate">
               <span class="truncate">AUDITORIO ACADÉMICO</span>
-              <span class="text-[9px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-purple-950 border border-purple-500/50 text-purple-300 font-mono shrink-0">
-                Cátedra EDO
-              </span>
+              <span class="text-[9px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-purple-950 border border-purple-500/50 text-purple-300 font-mono shrink-0">Cátedra EDO</span>
             </h3>
             <p class="text-[8.5px] sm:text-[10px] text-slate-400 font-mono truncate">
               Ecuaciones Diferenciales Ordinarias (EDO) & Análisis Numérico (Euler vs Runge-Kutta 4)
@@ -158,7 +140,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeyDown))
         </button>
       </div>
 
-      <!-- Selector de Pestañas Académicas con scroll horizontal suave -->
       <div class="px-2.5 sm:px-4 py-2 border-b border-purple-500/20 bg-slate-950/60 flex items-center gap-1.5 sm:gap-2 shrink-0 font-mono text-xs overflow-x-auto no-scrollbar scroll-smooth">
         <button
           type="button"
@@ -177,7 +158,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeyDown))
         </button>
       </div>
 
-      <!-- Contenido de las Pestañas con Transición y Scroll Limpio -->
       <div ref="tabContentRef" class="p-2.5 sm:p-4 overflow-y-auto overscroll-contain flex-1 pb-6 will-change-[opacity,transform]">
         <DifferentialEquationsTab
           v-if="activeTab === 'EDO'"

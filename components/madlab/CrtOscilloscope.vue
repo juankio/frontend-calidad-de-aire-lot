@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Radio, Activity } from 'lucide-vue-next'
+import { Radio } from 'lucide-vue-next'
 import MadLabContainer from './MadLabContainer.vue'
+import CrtCalibrationKnobs from './CrtCalibrationKnobs.vue'
+import { computeCrtPaths, type CrtHistoryPoint } from '~/utils/crtOscilloscopeMath'
 
 const props = withDefaults(defineProps<{
-  history?: Array<{ timestamp: number; ppm: number; predicted_ppm_15m: number }>
+  history?: CrtHistoryPoint[]
   riskStatus?: 'OPTIMAL' | 'WARNING_PREDICTIVE' | 'CRITICAL' | 'RECOVERY' | 'SLEEPING'
   predictedPpm15m?: number
   deltaPpm1m?: number
@@ -16,58 +18,12 @@ const props = withDefaults(defineProps<{
 })
 
 const isContainerExpanded = ref(false)
-
 const isSleeping = computed(() => props.riskStatus === 'SLEEPING')
 const lastPpm = computed(() => (props.history?.length ? props.history[props.history.length - 1].ppm : 412))
-const minPpm = computed(() => (props.history?.length ? Math.max(300, Math.min(...props.history.map(p => p.ppm)) - 40) : 350))
-const maxPpm = computed(() => (props.history?.length ? Math.max(800, Math.max(...props.history.map(p => p.ppm)) + 60) : 800))
 
-// Coordenadas dinámicas Tektronix Graticule
-const viewWidth = computed(() => isContainerExpanded.value ? 600 : 320)
-const viewHeight = computed(() => isContainerExpanded.value ? 300 : 120)
-const plotWidth = computed(() => isContainerExpanded.value ? 500 : 260)
-const plotHeight = computed(() => isContainerExpanded.value ? 230 : 100)
-const plotOffsetY = computed(() => isContainerExpanded.value ? 35 : 10)
-const midY = computed(() => viewHeight.value / 2)
-const midX = computed(() => viewWidth.value / 2)
-
-const pointsSvg = computed(() => {
-  const pts = props.history || []
-  const w = plotWidth.value
-  const h = plotHeight.value
-  const offY = plotOffsetY.value
-  if (pts.length < 2) return `M 0 ${midY.value} L ${w} ${midY.value}`
-  const range = maxPpm.value - minPpm.value || 1
-  return pts.map((p, i) => {
-    const x = ((i / (pts.length - 1)) * w).toFixed(1)
-    const y = (offY + (h - ((p.ppm - minPpm.value) / range) * h)).toFixed(1)
-    return `${i === 0 ? 'M' : 'L'} ${x} ${y}`
-  }).join(' ')
-})
-
-const predLineSvg = computed(() => {
-  const pts = props.history || []
-  const w = plotWidth.value
-  const h = plotHeight.value
-  const offY = plotOffsetY.value
-  const targetX = viewWidth.value - (isContainerExpanded.value ? 35 : 10)
-  const range = maxPpm.value - minPpm.value || 1
-  const startY = pts.length ? offY + (h - ((pts[pts.length - 1].ppm - minPpm.value) / range) * h) : midY.value
-  const endY = Math.max(offY + 8, Math.min(offY + h - 8, offY + (h - ((props.predictedPpm15m - minPpm.value) / range) * h)))
-  return `M ${w} ${startY.toFixed(1)} L ${targetX} ${endY.toFixed(1)}`
-})
-
-const predCirclePos = computed(() => {
-  const h = plotHeight.value
-  const offY = plotOffsetY.value
-  const targetX = viewWidth.value - (isContainerExpanded.value ? 35 : 10)
-  const range = maxPpm.value - minPpm.value || 1
-  const y = offY + (h - ((props.predictedPpm15m - minPpm.value) / range) * h)
-  return {
-    cx: targetX,
-    cy: Number.isFinite(y) ? Math.max(offY + 8, Math.min(offY + h - 8, y)) : midY.value
-  }
-})
+const crt = computed(() =>
+  computeCrtPaths(props.history || [], props.predictedPpm15m, isContainerExpanded.value)
+)
 </script>
 
 <template>
@@ -76,7 +32,6 @@ const predCirclePos = computed(() => {
       class="p-3 w-full h-full flex flex-col select-none transition-all duration-300"
       :class="isContainerExpanded ? 'gap-3 overflow-y-auto' : 'overflow-hidden'"
     >
-      <!-- Cabecera e Instrumento -->
       <div
         class="flex items-center justify-between rounded-lg bg-slate-950/80 border border-cyan-500/25 shrink-0 transition-all font-mono"
         :class="isContainerExpanded ? 'px-3 py-2 text-xs' : 'px-2 py-1 mb-2 text-[9px]'"
@@ -108,14 +63,13 @@ const predCirclePos = computed(() => {
         </div>
       </div>
 
-      <!-- Pantalla CRT Fósforo Verde Tektronix -->
       <div
         class="relative w-full rounded-xl bg-[#020a04] border-2 border-[#00ff66]/30 overflow-hidden shadow-[inset_0_0_35px_rgba(0,255,102,0.22)] transition-all duration-300"
         :class="isContainerExpanded ? 'min-h-[380px] sm:min-h-[460px] flex-1' : 'flex-1 min-h-[140px]'"
       >
         <svg
           class="absolute inset-0 w-full h-full pointer-events-none"
-          :viewBox="`0 0 ${viewWidth} ${viewHeight}`"
+          :viewBox="`0 0 ${crt.viewWidth} ${crt.viewHeight}`"
           preserveAspectRatio="none"
         >
           <defs>
@@ -134,67 +88,29 @@ const predCirclePos = computed(() => {
               />
             </pattern>
           </defs>
-          <!-- Retícula de fósforo -->
           <rect width="100%" height="100%" fill="url(#crt-grid)" />
-
-          <!-- Eje Central Horizontal (Línea de base) -->
-          <line
-            x1="0"
-            :y1="midY"
-            :x2="viewWidth"
-            :y2="midY"
-            stroke="#00ff66"
-            stroke-width="0.9"
-            stroke-opacity="0.4"
-            stroke-dasharray="3,3"
-          />
-
-          <!-- Eje Central Vertical -->
-          <line
-            :x1="midX"
-            y1="0"
-            :x2="midX"
-            :y2="viewHeight"
-            stroke="#00ff66"
-            stroke-width="0.9"
-            stroke-opacity="0.4"
-            stroke-dasharray="3,3"
-          />
+          <line x1="0" :y1="crt.midY" :x2="crt.viewWidth" :y2="crt.midY" stroke="#00ff66" stroke-width="0.9" stroke-opacity="0.4" stroke-dasharray="3,3" />
+          <line :x1="crt.midX" y1="0" :x2="crt.midX" :y2="crt.viewHeight" stroke="#00ff66" stroke-width="0.9" stroke-opacity="0.4" stroke-dasharray="3,3" />
 
           <g v-if="isSleeping">
-            <line
-              x1="0"
-              :y1="midY"
-              :x2="viewWidth"
-              :y2="midY"
-              stroke="#00ff66"
-              stroke-width="2"
-              stroke-opacity="0.75"
-              class="crt-glow-line animate-pulse"
-            />
+            <line x1="0" :y1="crt.midY" :x2="crt.viewWidth" :y2="crt.midY" stroke="#00ff66" stroke-width="2" stroke-opacity="0.75" class="crt-glow-line animate-pulse" />
           </g>
           <g v-else>
-            <!-- Señal de oscilograma real -->
-            <path :d="pointsSvg" fill="none" stroke="#00ff66" :stroke-width="isContainerExpanded ? 2.8 : 2.2" stroke-linecap="round" class="crt-glow-line" />
-            <!-- Vector de proyección estocástica -->
-            <path :d="predLineSvg" fill="none" stroke="#fbbf24" :stroke-width="isContainerExpanded ? 2.5 : 2" stroke-dasharray="4,4" class="crt-glow-pred" />
-            <!-- Baliza del pronóstico -->
-            <circle :cx="predCirclePos.cx" :cy="predCirclePos.cy" :r="isContainerExpanded ? 4.5 : 3.5" fill="#fbbf24" class="animate-ping" opacity="0.85" />
-            <circle :cx="predCirclePos.cx" :cy="predCirclePos.cy" :r="isContainerExpanded ? 3.5 : 2.5" fill="#fef08a" />
+            <path :d="crt.pointsSvg" fill="none" stroke="#00ff66" :stroke-width="isContainerExpanded ? 2.8 : 2.2" stroke-linecap="round" class="crt-glow-line" />
+            <path :d="crt.predLineSvg" fill="none" stroke="#fbbf24" :stroke-width="isContainerExpanded ? 2.5 : 2" stroke-dasharray="4,4" class="crt-glow-pred" />
+            <circle :cx="crt.predCirclePos.cx" :cy="crt.predCirclePos.cy" :r="isContainerExpanded ? 4.5 : 3.5" fill="#fbbf24" class="animate-ping" opacity="0.85" />
+            <circle :cx="crt.predCirclePos.cx" :cy="crt.predCirclePos.cy" :r="isContainerExpanded ? 3.5 : 2.5" fill="#fef08a" />
           </g>
         </svg>
 
-        <!-- Scanlines CRT vintage -->
         <div class="absolute inset-0 pointer-events-none crt-scanlines" />
 
-        <!-- OSD Modo Espera -->
         <div v-if="isSleeping" class="absolute inset-0 flex items-center justify-center p-3 pointer-events-none">
           <div class="px-4 py-2 rounded-lg bg-black/85 border border-cyan-500/50 text-cyan-300 font-mono text-xs sm:text-sm font-bold tracking-wider text-center drop-shadow-[0_0_10px_#06b6d4] animate-pulse">
             OSCILOSCOPIO TÁCTICO HUD • ESPERANDO TREN DE PULSOS SENSOR
           </div>
         </div>
 
-        <!-- OSD Normal Activo -->
         <template v-else>
           <div
             class="absolute top-2 left-3 right-3 flex items-center justify-between font-mono text-cyan-300 opacity-90 drop-shadow-[0_0_5px_#06b6d4]"
@@ -211,40 +127,12 @@ const predCirclePos = computed(() => {
               <span>BASE TIEMPO: 2.0s/DIV</span>
               <span>SENSIBILIDAD: 50 PPM/DIV</span>
             </div>
-            <div class="hidden sm:inline font-mono text-cyan-400/60">
-              TEK-HUD 2465B • CO2 CHANNEL
-            </div>
+            <div class="hidden sm:inline font-mono text-cyan-400/60">TEK-HUD 2465B • CO2 CHANNEL</div>
           </div>
         </template>
       </div>
 
-      <!-- Perillas Tácticas de Calibración Mecha -->
-      <div
-        class="grid grid-cols-4 gap-2 mt-auto border-t border-cyan-500/20 text-center font-mono shrink-0 transition-all"
-        :class="isContainerExpanded ? 'pt-3 pb-1' : 'pt-2'"
-      >
-        <div v-for="knob in ['TIEMPO', 'SENSIBILIDAD', 'DISPARO', 'FOCO']" :key="knob" class="flex flex-col items-center">
-          <div
-            class="rounded-full bg-slate-900 border border-cyan-500/40 flex items-center justify-center shadow-inner relative transition-all group-hover:border-cyan-400"
-            :class="isContainerExpanded ? 'w-8 h-8' : 'w-5 h-5'"
-          >
-            <div
-              class="bg-cyan-400 absolute rounded-full shadow-[0_0_6px_#06b6d4]"
-              :class="isContainerExpanded ? 'w-0.5 h-3 top-0.5' : 'w-0.5 h-2 top-0.5'"
-            />
-            <div
-              class="rounded-full bg-slate-950 border border-cyan-500/60"
-              :class="isContainerExpanded ? 'w-2.5 h-2.5' : 'w-1.5 h-1.5'"
-            />
-          </div>
-          <span
-            class="font-mono font-bold text-cyan-400 mt-1"
-            :class="isContainerExpanded ? 'text-[9px]' : 'text-[7.5px]'"
-          >
-            {{ knob }}
-          </span>
-        </div>
-      </div>
+      <CrtCalibrationKnobs :expanded="isContainerExpanded" />
     </div>
   </MadLabContainer>
 </template>
