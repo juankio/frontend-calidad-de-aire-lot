@@ -70,7 +70,7 @@ const colorTheme = computed(() => {
 
     <!-- Zócalo de baquelita y latón con etiqueta grabada -->
     <div class="w-full mt-1.5 pt-1 border-t border-[#854d0e]/50 text-center">
-      <div class="text-[9px] font-journal font-bold text-[#fbbf24] tracking-wide truncate">
+      <div class="text-[9px] font-mono font-bold text-[#fbbf24] tracking-wide truncate">
         {{ label }}
       </div>
       <div v-if="sublabel" class="text-[7.5px] font-mono text-stone-400 truncate">

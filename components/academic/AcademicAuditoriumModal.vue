@@ -2,7 +2,6 @@
 import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { GraduationCap, X, BookOpen, Activity, Table } from 'lucide-vue-next'
 import anime from 'animejs'
-import LabScrew from '~/components/madlab/LabScrew.vue'
 import { useNumericalAcademic } from '~/composables/useNumericalAcademic'
 import DifferentialEquationsTab from './DifferentialEquationsTab.vue'
 import NumericalSimulationTab from './NumericalSimulationTab.vue'
@@ -113,28 +112,36 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeyDown))
   >
     <div
       ref="modalCardRef"
-      class="bg-gradient-to-b from-[#1c150c] via-[#120d08] to-[#0a0704] border-2 border-[#854d0e] rounded-2xl w-full max-w-4xl h-[92dvh] sm:h-[88vh] max-h-[850px] flex flex-col shadow-[0_25px_70px_rgba(0,0,0,0.95),inset_0_1px_1px_rgba(251,191,36,0.18)] relative select-none overflow-hidden"
+      class="bg-[#070b14]/95 border border-purple-500/40 rounded-2xl w-full max-w-4xl h-[92dvh] sm:h-[88vh] max-h-[850px] flex flex-col shadow-[0_25px_70px_rgba(0,0,0,0.95),0_0_35px_rgba(168,85,247,0.15)] relative select-none overflow-hidden font-mono"
     >
-      <!-- Tornillos ornamentales steampunk en esquinas -->
-      <div class="absolute top-2.5 left-2.5 z-10"><LabScrew :rotation="42" /></div>
-      <div class="absolute top-2.5 right-12 z-10"><LabScrew :rotation="115" /></div>
-      <div class="absolute bottom-2.5 left-2.5 z-10"><LabScrew :rotation="78" /></div>
-      <div class="absolute bottom-2.5 right-2.5 z-10"><LabScrew :rotation="15" /></div>
+      <!-- Esquinas Tácticas HUD -->
+      <svg class="absolute top-1.5 left-1.5 w-3.5 h-3.5 text-purple-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none">
+        <path d="M1 13V3C1 1.89543 1.89543 1 3 1H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+      </svg>
+      <svg class="absolute top-1.5 right-1.5 w-3.5 h-3.5 text-purple-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none">
+        <path d="M13 13V3C13 1.89543 12.1046 1 11 1H1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+      </svg>
+      <svg class="absolute bottom-1.5 left-1.5 w-3.5 h-3.5 text-purple-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none">
+        <path d="M1 1V11C1 12.1046 1.89543 13 3 13H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+      </svg>
+      <svg class="absolute bottom-1.5 right-1.5 w-3.5 h-3.5 text-purple-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none">
+        <path d="M13 1V11C13 12.1046 12.1046 13 11 13H1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+      </svg>
 
-      <!-- Cabecera Universitaria -->
-      <div class="px-2.5 sm:px-4 py-2 sm:py-3 border-b border-[#854d0e]/50 flex items-center justify-between shrink-0 bg-[#0f0b07] pl-8 sm:pl-9 pr-2 sm:pr-4">
+      <!-- Cabecera Universitaria Táctica -->
+      <div class="px-2.5 sm:px-4 py-2 sm:py-3 border-b border-purple-500/20 flex items-center justify-between shrink-0 bg-slate-950/80 pr-2 sm:pr-4">
         <div class="flex items-center gap-2 sm:gap-2.5 min-w-0 pr-2">
-          <div class="p-1.5 sm:p-2 rounded-xl bg-amber-950/80 border border-amber-500/40 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.2)] shrink-0">
+          <div class="p-1.5 sm:p-2 rounded-xl bg-purple-950/80 border border-purple-500/40 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.25)] shrink-0">
             <GraduationCap class="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div class="min-w-0">
-            <h3 class="text-xs sm:text-base font-journal font-bold text-[#fbbf24] flex items-center gap-1.5 sm:gap-2 truncate">
-              <span class="truncate">Auditorio Académico</span>
-              <span class="text-[9px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-600/50 text-emerald-400 font-mono shrink-0">
-                Cátedra Interdisciplinar
+            <h3 class="text-xs sm:text-base font-scifi font-bold text-white flex items-center gap-1.5 sm:gap-2 truncate">
+              <span class="truncate">AUDITORIO ACADÉMICO</span>
+              <span class="text-[9px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-purple-950 border border-purple-500/50 text-purple-300 font-mono shrink-0">
+                Cátedra EDO
               </span>
             </h3>
-            <p class="text-[8.5px] sm:text-[10px] text-stone-400 font-journal truncate">
+            <p class="text-[8.5px] sm:text-[10px] text-slate-400 font-mono truncate">
               Ecuaciones Diferenciales Ordinarias (EDO) & Análisis Numérico (Euler vs Runge-Kutta 4)
             </p>
           </div>
@@ -145,28 +152,28 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeyDown))
           @click="handleClose"
           title="Cerrar ventana académica (Esc)"
           aria-label="Cerrar ventana académica"
-          class="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-lg text-stone-400 hover:text-amber-300 hover:bg-amber-950/40 border border-transparent hover:border-amber-700/40 transition cursor-pointer group active:scale-90 shrink-0"
+          class="min-h-[40px] min-w-[40px] flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-purple-200 hover:bg-purple-950/40 border border-transparent hover:border-purple-500/40 transition cursor-pointer group active:scale-90 shrink-0"
         >
           <X class="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
         </button>
       </div>
 
       <!-- Selector de Pestañas Académicas con scroll horizontal suave -->
-      <div class="px-2.5 sm:px-4 py-2 border-b border-[#854d0e]/30 bg-[#0d0906] flex items-center gap-1.5 sm:gap-2 shrink-0 font-journal text-xs overflow-x-auto no-scrollbar scroll-smooth">
+      <div class="px-2.5 sm:px-4 py-2 border-b border-purple-500/20 bg-slate-950/60 flex items-center gap-1.5 sm:gap-2 shrink-0 font-mono text-xs overflow-x-auto no-scrollbar scroll-smooth">
         <button
           type="button"
           v-for="tab in tabs"
           :key="tab.id"
           :ref="(el) => { if (el) tabButtonsRef[tab.id] = el as HTMLElement }"
           @click="activeTab = tab.id"
-          class="min-h-[38px] px-3 sm:px-3.5 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer relative shrink-0 active:scale-95 text-[11px] sm:text-xs"
+          class="min-h-[36px] px-3 sm:px-3.5 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer relative shrink-0 active:scale-95 text-[11px] sm:text-xs"
           :class="activeTab === tab.id
-            ? 'bg-gradient-to-r from-[#b45309] via-[#c25e0a] to-[#92400e] text-white border border-amber-400/60 shadow-[0_2px_10px_rgba(217,119,6,0.35)]'
-            : 'bg-[#150f09]/80 border border-[#854d0e]/30 text-stone-400 hover:text-amber-200 hover:bg-[#1a120b] hover:border-[#854d0e]/60'"
+            ? 'bg-purple-600/30 text-white border border-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.35)]'
+            : 'bg-slate-900/80 border border-purple-500/20 text-slate-400 hover:text-purple-200 hover:bg-slate-850 hover:border-purple-500/40'"
         >
-          <component :is="tab.icon" class="w-3.5 h-3.5 shrink-0" :class="activeTab === tab.id ? 'text-amber-200' : 'text-stone-500'" />
+          <component :is="tab.icon" class="w-3.5 h-3.5 shrink-0" :class="activeTab === tab.id ? 'text-purple-300' : 'text-slate-500'" />
           <span>{{ tab.label }}</span>
-          <span v-if="activeTab === tab.id" class="w-1.5 h-1.5 rounded-full bg-amber-300 shadow-[0_0_6px_#fbbf24] animate-pulse" />
+          <span v-if="activeTab === tab.id" class="w-1.5 h-1.5 rounded-full bg-purple-400 shadow-[0_0_6px_#c084fc] animate-pulse" />
         </button>
       </div>
 

@@ -13,19 +13,29 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        mad: ['"Creepster"', 'cursive'],
-        journal: ['"Special Elite"', 'cursive'],
         scifi: ['"Orbitron"', 'sans-serif'],
         sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'monospace']
+        mono: ['"JetBrains Mono"', 'monospace'],
+        mad: ['"Orbitron"', 'sans-serif'],
+        journal: ['"Plus Jakarta Sans"', 'sans-serif']
       },
       colors: {
         neutral: {
-          950: '#07090e',
-          900: '#0c0e14',
-          850: '#121620',
-          800: '#1c2233',
-          700: '#2d3345'
+          950: '#030712',
+          900: '#070b14',
+          850: '#0b1120',
+          800: '#111827',
+          700: '#1e293b'
+        },
+        mecha: {
+          dark: '#030712',
+          obsidian: '#070b14',
+          panel: '#0b1329',
+          cyan: '#06b6d4',
+          orange: '#f97316',
+          emerald: '#10b981',
+          amber: '#f59e0b',
+          crimson: '#ef4444'
         }
       }
     }

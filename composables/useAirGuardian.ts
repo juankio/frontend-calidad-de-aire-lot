@@ -17,6 +17,11 @@ export interface TelemetryData {
   mpu_connected?: boolean
   eye_x?: number
   eye_y?: number
+  pitch?: number
+  roll?: number
+  ax?: number
+  ay?: number
+  az?: number
   free_heap?: number
   uptime_s?: number
   offline_pending?: number
@@ -101,14 +106,14 @@ const globalSelectedSessionId = ref<string | null>(null)
 
 export function useAirGuardian() {
   const config = useRuntimeConfig()
-  const apiBase = (config.public.apiBase as string) || 'http://localhost:3002'
-  const wsBase = (config.public.wsBase as string) || 'ws://localhost:3002'
+  const apiBase = ((config.public.apiBase as string) || 'https://servidor-taller.tailf19567.ts.net:10000').replace(/\/+$/, '')
+  const wsBase = ((config.public.wsBase as string) || apiBase.replace(/^http/, 'ws')).replace(/\/+$/, '')
 
   const wsConnected = ref(false)
   const operationMode = ref<'LOCAL' | 'LIVE'>('LIVE')
   const isSimulatorRunning = ref(false)
   const isModalOpen = ref(false)
-  const viewMode = ref<'FACE' | 'HUD'>('FACE')
+  const viewMode = ref<'FACE' | 'HUD' | '3D'>('FACE')
   const selectedSessionId = globalSelectedSessionId
 
   // Tracking estricto de paquetes
@@ -132,6 +137,11 @@ export function useAirGuardian() {
     mpu_connected: true,
     eye_x: 0,
     eye_y: 0,
+    pitch: 0,
+    roll: 0,
+    ax: 0,
+    ay: 0,
+    az: 9.8,
     free_heap: 184320,
     uptime_s: 3600,
     offline_pending: 0,
@@ -212,6 +222,23 @@ export function useAirGuardian() {
     if (data.eye_y !== undefined) telemetry.eye_y = Number(data.eye_y)
     else if (data.sensors?.eye_y !== undefined) telemetry.eye_y = Number(data.sensors.eye_y)
 
+    if (data.pitch !== undefined) telemetry.pitch = Number(data.pitch)
+    else if (data.sensors?.pitch !== undefined) telemetry.pitch = Number(data.sensors.pitch)
+    else if (telemetry.eye_y !== undefined) telemetry.pitch = -telemetry.eye_y * 12
+
+    if (data.roll !== undefined) telemetry.roll = Number(data.roll)
+    else if (data.sensors?.roll !== undefined) telemetry.roll = Number(data.sensors.roll)
+    else if (telemetry.eye_x !== undefined) telemetry.roll = telemetry.eye_x * 12
+
+    if (data.ax !== undefined) telemetry.ax = Number(data.ax)
+    else if (data.sensors?.ax !== undefined) telemetry.ax = Number(data.sensors.ax)
+
+    if (data.ay !== undefined) telemetry.ay = Number(data.ay)
+    else if (data.sensors?.ay !== undefined) telemetry.ay = Number(data.sensors.ay)
+
+    if (data.az !== undefined) telemetry.az = Number(data.az)
+    else if (data.sensors?.az !== undefined) telemetry.az = Number(data.sensors.az)
+
     if (data.free_heap !== undefined) telemetry.free_heap = Number(data.free_heap)
     else if (data.hardware?.free_heap !== undefined) telemetry.free_heap = Number(data.hardware.free_heap)
 
@@ -233,6 +260,8 @@ export function useAirGuardian() {
         viewMode.value = 'FACE'
       } else if (vm === 'HUD' || vm === 'VIEW_CIRCULAR_HUD') {
         viewMode.value = 'HUD'
+      } else if (vm === '3D' || vm === 'VIEW_3D' || vm === 'DIGITAL_TWIN') {
+        viewMode.value = '3D'
       }
     }
 
@@ -344,6 +373,9 @@ export function useAirGuardian() {
         // Backend offline
       }
       fetchLiveTelemetry()
+      if (!wsConnected.value) {
+        connectWebSocket()
+      }
     }
   }
 
@@ -386,7 +418,7 @@ export function useAirGuardian() {
 
       socket.onclose = () => {
         wsConnected.value = false
-        if (!reconnectTimer) {
+        if (operationMode.value === 'LIVE' && !reconnectTimer) {
           reconnectTimer = setTimeout(() => {
             reconnectTimer = null
             connectWebSocket()
@@ -538,7 +570,13 @@ export function useAirGuardian() {
   }
 
   function toggleViewMode() {
-    viewMode.value = viewMode.value === 'FACE' ? 'HUD' : 'FACE'
+    if (viewMode.value === 'FACE') {
+      viewMode.value = 'HUD'
+    } else if (viewMode.value === 'HUD') {
+      viewMode.value = '3D'
+    } else {
+      viewMode.value = 'FACE'
+    }
     fetch(`${apiBase}/api/telemetry/command`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -546,8 +584,8 @@ export function useAirGuardian() {
         device_id: telemetry.device_id || 'air-guardian-01',
         view_mode: viewMode.value
       })
-    }).catch(err => {
-      console.error('Error sending view_mode command to backend', err)
+    }).catch(() => {
+      // Backend offline o fallo de red capturado suavemente
     })
   }
 

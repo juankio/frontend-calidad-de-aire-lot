@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, inject, ref, type Ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Radio, Activity } from 'lucide-vue-next'
 import MadLabContainer from './MadLabContainer.vue'
-import LabScrew from './LabScrew.vue'
 
 const props = withDefaults(defineProps<{
   history?: Array<{ timestamp: number; ppm: number; predicted_ppm_15m: number }>
@@ -79,33 +78,33 @@ const predCirclePos = computed(() => {
     >
       <!-- Cabecera e Instrumento -->
       <div
-        class="flex items-center justify-between rounded-lg bg-gradient-to-r from-[#1c1917] via-[#292524] to-[#1c1917] border border-[#854d0e]/50 shrink-0 transition-all"
+        class="flex items-center justify-between rounded-lg bg-slate-950/80 border border-cyan-500/25 shrink-0 transition-all font-mono"
         :class="isContainerExpanded ? 'px-3 py-2 text-xs' : 'px-2 py-1 mb-2 text-[9px]'"
       >
         <div class="flex items-center gap-2">
-          <div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-black/60 border border-stone-800">
+          <div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-900 border border-slate-800">
             <span
-              class="w-2.5 h-2.5 rounded-full border border-black transition-all shadow-[0_0_8px]"
+              class="w-2 h-2 rounded-full transition-all shadow-[0_0_8px]"
               :class="isSleeping ? 'bg-slate-500 shadow-slate-500' : riskStatus === 'CRITICAL' ? 'bg-rose-500 shadow-rose-500 animate-ping' : riskStatus === 'WARNING_PREDICTIVE' ? 'bg-amber-400 shadow-amber-400 animate-pulse' : 'bg-emerald-400 shadow-emerald-400'"
             />
             <span
-              class="font-journal font-bold tracking-wide"
+              class="font-mono font-bold tracking-wide uppercase"
               :class="[
                 isContainerExpanded ? 'text-xs' : 'text-[10px]',
-                isSleeping ? 'text-stone-400' : riskStatus === 'CRITICAL' ? 'text-rose-400' : riskStatus === 'WARNING_PREDICTIVE' ? 'text-amber-400' : 'text-emerald-400'
+                isSleeping ? 'text-slate-400' : riskStatus === 'CRITICAL' ? 'text-rose-400' : riskStatus === 'WARNING_PREDICTIVE' ? 'text-amber-300' : 'text-emerald-400'
               ]"
             >
-              {{ isSleeping ? 'Modo Espera (Standby)' : riskStatus === 'CRITICAL' ? '¡Peligro! Concentración Crítica' : riskStatus === 'WARNING_PREDICTIVE' ? 'Alerta: Tendencia al Alza' : 'Calidad de Aire Óptima' }}
+              {{ isSleeping ? 'MODO ESPERA (STANDBY)' : riskStatus === 'CRITICAL' ? 'PELIGRO • CONCENTRACIÓN CRÍTICA' : riskStatus === 'WARNING_PREDICTIVE' ? 'ALERTA • TENDENCIA AL ALZA' : 'CALIDAD ÓPTIMA • AIRE PURO' }}
             </span>
           </div>
-          <span v-if="!isSleeping" class="font-mono text-stone-400 hidden sm:inline" :class="isContainerExpanded ? 'text-[10.5px]' : 'text-[9px]'">
+          <span v-if="!isSleeping" class="font-mono text-slate-400 hidden sm:inline" :class="isContainerExpanded ? 'text-[10.5px]' : 'text-[9px]'">
             Δ {{ deltaPpm1m >= 0 ? '+' : '' }}{{ deltaPpm1m.toFixed(1) }} PPM/min
           </span>
         </div>
-        <div class="flex items-center gap-1.5 font-mono text-amber-300 font-bold" :class="isContainerExpanded ? 'text-[11px]' : 'text-[9px]'">
-          <Radio class="w-3.5 h-3.5" :class="isSleeping ? 'text-stone-500' : 'text-amber-400 animate-pulse'" />
-          <span class="font-journal">Pronóstico +15 min:</span>
-          <strong class="text-white font-mono text-amber-200">{{ isSleeping ? '---' : `${predictedPpm15m} PPM` }}</strong>
+        <div class="flex items-center gap-1.5 font-mono text-cyan-300 font-bold" :class="isContainerExpanded ? 'text-[11px]' : 'text-[9px]'">
+          <Radio class="w-3.5 h-3.5" :class="isSleeping ? 'text-slate-500' : 'text-cyan-400 animate-pulse'" />
+          <span>PRONÓSTICO +15m:</span>
+          <strong class="text-white font-mono">{{ isSleeping ? '---' : `${predictedPpm15m} PPM` }}</strong>
         </div>
       </div>
 
@@ -190,56 +189,56 @@ const predCirclePos = computed(() => {
 
         <!-- OSD Modo Espera -->
         <div v-if="isSleeping" class="absolute inset-0 flex items-center justify-center p-3 pointer-events-none">
-          <div class="px-4 py-2 rounded-lg bg-black/85 border border-[#00ff66]/60 text-[#00ff66] font-journal text-xs sm:text-sm font-bold tracking-wider text-center drop-shadow-[0_0_10px_#00ff66] animate-pulse">
-            📟 Osciloscopio Tektronix P31 • Esperando tren de pulsos del sensor
+          <div class="px-4 py-2 rounded-lg bg-black/85 border border-cyan-500/50 text-cyan-300 font-mono text-xs sm:text-sm font-bold tracking-wider text-center drop-shadow-[0_0_10px_#06b6d4] animate-pulse">
+            OSCILOSCOPIO TÁCTICO HUD • ESPERANDO TREN DE PULSOS SENSOR
           </div>
         </div>
 
         <!-- OSD Normal Activo -->
         <template v-else>
           <div
-            class="absolute top-2 left-3 right-3 flex items-center justify-between font-mono text-[#00ff66] opacity-90 drop-shadow-[0_0_5px_#00ff66]"
+            class="absolute top-2 left-3 right-3 flex items-center justify-between font-mono text-cyan-300 opacity-90 drop-shadow-[0_0_5px_#06b6d4]"
             :class="isContainerExpanded ? 'text-[11px]' : 'text-[9px]'"
           >
-            <span class="font-journal">📟 Traza en Vivo: <span class="font-mono font-bold text-[#bbf7d0]">{{ lastPpm }} PPM</span></span>
-            <span class="font-journal">Horizonte Predictivo (+15m): <span class="font-mono font-bold text-amber-300">{{ predictedPpm15m }} PPM</span></span>
+            <span>TRAZA EN VIVO: <span class="font-mono font-bold text-white">{{ lastPpm }} PPM</span></span>
+            <span>HORIZONTE PREDICTIVO (+15m): <span class="font-mono font-bold text-amber-300">{{ predictedPpm15m }} PPM</span></span>
           </div>
           <div
-            class="absolute bottom-2 left-3 right-3 flex items-center justify-between font-mono text-[#00ff66]/70"
+            class="absolute bottom-2 left-3 right-3 flex items-center justify-between font-mono text-cyan-400/70"
             :class="isContainerExpanded ? 'text-[9.5px]' : 'text-[8px]'"
           >
             <div class="flex items-center gap-3">
               <span>BASE TIEMPO: 2.0s/DIV</span>
               <span>SENSIBILIDAD: 50 PPM/DIV</span>
             </div>
-            <div class="hidden sm:inline font-journal text-[#00ff66]/60">
-              TEK-LAB 2465B • CO2 CHANNEL
+            <div class="hidden sm:inline font-mono text-cyan-400/60">
+              TEK-HUD 2465B • CO2 CHANNEL
             </div>
           </div>
         </template>
       </div>
 
-      <!-- Perillas de Laboratorio Calibradas -->
+      <!-- Perillas Tácticas de Calibración Mecha -->
       <div
-        class="grid grid-cols-4 gap-2 mt-auto border-t border-[#854d0e]/30 text-center font-mono shrink-0 transition-all"
+        class="grid grid-cols-4 gap-2 mt-auto border-t border-cyan-500/20 text-center font-mono shrink-0 transition-all"
         :class="isContainerExpanded ? 'pt-3 pb-1' : 'pt-2'"
       >
         <div v-for="knob in ['TIEMPO', 'SENSIBILIDAD', 'DISPARO', 'FOCO']" :key="knob" class="flex flex-col items-center">
           <div
-            class="rounded-full bg-gradient-to-tr from-[#1c1917] via-[#451a03] to-[#78350f] border border-[#fbbf24]/60 flex items-center justify-center shadow-inner relative transition-all"
+            class="rounded-full bg-slate-900 border border-cyan-500/40 flex items-center justify-center shadow-inner relative transition-all group-hover:border-cyan-400"
             :class="isContainerExpanded ? 'w-8 h-8' : 'w-5 h-5'"
           >
             <div
-              class="bg-[#fbbf24] absolute rounded-full"
+              class="bg-cyan-400 absolute rounded-full shadow-[0_0_6px_#06b6d4]"
               :class="isContainerExpanded ? 'w-0.5 h-3 top-0.5' : 'w-0.5 h-2 top-0.5'"
             />
             <div
-              class="rounded-full bg-[#1c1917] border border-[#d97706]"
+              class="rounded-full bg-slate-950 border border-cyan-500/60"
               :class="isContainerExpanded ? 'w-2.5 h-2.5' : 'w-1.5 h-1.5'"
             />
           </div>
           <span
-            class="font-journal font-bold text-[#fbbf24] mt-1"
+            class="font-mono font-bold text-cyan-400 mt-1"
             :class="isContainerExpanded ? 'text-[9px]' : 'text-[7.5px]'"
           >
             {{ knob }}

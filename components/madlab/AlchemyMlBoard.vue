@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { BrainCircuit, FileSpreadsheet, FileCode } from 'lucide-vue-next'
-import LabScrew from './LabScrew.vue'
 import MadLabContainer from './MadLabContainer.vue'
 import type { SessionData, TelemetryData } from '~/composables/useAirGuardian'
 
 const props = defineProps<{ sessions?: SessionData[]; telemetry?: TelemetryData }>()
 const downloading = ref<string | null>(null)
 const config = useRuntimeConfig()
-const apiBase = (config.public.apiBase as string) || 'http://localhost:3002'
+const apiBase = ((config.public.apiBase as string) || 'https://servidor-taller.tailf19567.ts.net:10000').replace(/\/+$/, '')
 
 const showMatrix = ref(false)
 const vars = ['CO2', 'CO', 'TEMP', 'HUM']
@@ -62,8 +61,9 @@ async function download(layer: 'bronze' | 'silver' | 'gold', fmt: 'csv' | 'json'
     throw new Error(`API retornó código ${res.status}`)
   } catch {
     // Fallback de contingencia local si el backend está desconectado o en modo local
+    const fallbackSessions = [{ id: 'ses-1', name: 'Campus', lat: 4.14, lng: -73.62, avg_ppm: 430 }]
     const data = layer === 'gold' 
-      ? (props.sessions || [{ id: 'ses-1', name: 'Campus', lat: 4.14, lng: -73.62, avg_ppm: 430 }])
+      ? (props.sessions && props.sessions.length > 0 ? props.sessions : fallbackSessions)
       : Array.from({ length: 15 }, (_, i) => ({ timestamp: Date.now() - i * 4000, ppm: 410 + i * 5, nivel: layer }))
     const blob = new Blob([fmt === 'csv' ? Object.keys(data[0]).join(',') + '\n' + data.map(r => Object.values(r).join(',')).join('\n') : JSON.stringify(data, null, 2)], { type: fmt === 'csv' ? 'text/csv' : 'application/json' })
     const a = document.createElement('a')
@@ -79,87 +79,102 @@ async function download(layer: 'bronze' | 'silver' | 'gold', fmt: 'csv' | 'json'
 
 <template>
   <MadLabContainer no-padding>
-    <div class="p-3 w-full h-full flex flex-col overflow-y-auto gap-2.5">
-
-    <!-- Cabecera -->
-    <div class="flex items-center justify-between pb-1.5 border-b border-[#854d0e]/40">
-      <div class="flex items-center gap-1.5">
-        <BrainCircuit class="w-3.5 h-3.5 text-amber-400" />
-        <span class="text-[11px] font-journal font-bold tracking-wider text-[#fbbf24]">🧪 Cerebro de IA & Descarga de Datos</span>
-      </div>
-      <span class="text-[8.5px] font-mono px-2 py-0.5 rounded bg-amber-950/60 border border-amber-600/50 text-amber-300 font-bold">MODELO v1.4</span>
-    </div>
-
-    <!-- 1. Tres Tubos Nixie de Precisión de IA -->
-    <div class="grid grid-cols-3 gap-2 shrink-0">
-      <div v-for="(nixie, idx) in [{ l: 'PRECISIÓN R²', val: '94.2%', sub: 'Ajuste del modelo' }, { l: 'DESVIACIÓN', val: '±18', sub: 'Margen de error' }, { l: 'HORIZONTE', val: '15m', sub: 'Anticipación' }]" :key="idx"
-        class="flex flex-col items-center p-1.5 rounded-xl bg-gradient-to-b from-[#1a120b] to-[#080503] border border-[#854d0e]/60 shadow-inner relative">
-        <div class="relative w-full h-12 rounded-t-lg bg-black/80 border border-amber-500/20 flex flex-col items-center justify-center overflow-hidden">
-          <div class="absolute inset-0 bg-[radial-gradient(#f97316_1px,transparent_1px)] [background-size:4px_4px] opacity-15" />
-          <div class="absolute top-0 left-1 w-1.5 h-8 bg-gradient-to-b from-white/30 to-transparent rounded-full pointer-events-none" />
-          <span class="text-base sm:text-lg font-mono font-black tracking-widest text-amber-400 drop-shadow-[0_0_8px_#ea580c]">{{ nixie.val }}</span>
+    <div class="p-3 w-full h-full flex flex-col overflow-y-auto gap-2.5 select-none">
+      <!-- Cabecera -->
+      <div class="flex items-center justify-between pb-1.5 border-b border-cyan-500/20 font-mono">
+        <div class="flex items-center gap-1.5">
+          <BrainCircuit class="w-3.5 h-3.5 text-cyan-400" />
+          <span class="text-[11px] font-bold tracking-wider text-slate-100 uppercase">NEURAL ML • EXTRACCIÓN DE DATOS</span>
         </div>
-        <div class="w-full mt-1 pt-1 border-t border-[#854d0e]/40 text-center">
-          <div class="text-[8.5px] font-journal font-bold text-[#fbbf24]">{{ nixie.l }}</div>
-          <div class="text-[7.5px] font-journal text-stone-400">{{ nixie.sub }}</div>
+        <span class="text-[8.5px] font-mono px-2 py-0.5 rounded bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 font-bold">MODELO v1.4</span>
+      </div>
+
+      <!-- 1. Tres Módulos de Precisión ML Mecha -->
+      <div class="grid grid-cols-3 gap-2 shrink-0">
+        <div
+          v-for="(nixie, idx) in [{ l: 'PRECISIÓN R²', val: '94.2%', sub: 'Ajuste del modelo' }, { l: 'DESVIACIÓN', val: '±18', sub: 'Margen de error' }, { l: 'HORIZONTE', val: '15m', sub: 'Anticipación' }]"
+          :key="idx"
+          class="flex flex-col items-center p-1.5 rounded-xl bg-slate-950/80 border border-cyan-500/30 shadow-inner relative"
+        >
+          <div class="relative w-full h-12 rounded-t-lg bg-black/90 border border-cyan-500/20 flex flex-col items-center justify-center overflow-hidden">
+            <div class="absolute inset-0 bg-[radial-gradient(#06b6d4_1px,transparent_1px)] [background-size:4px_4px] opacity-15" />
+            <div class="absolute top-0 left-1 w-1 h-7 bg-gradient-to-b from-cyan-400/40 to-transparent rounded-full pointer-events-none" />
+            <span class="text-base sm:text-lg font-mono font-black tracking-widest text-cyan-300 drop-shadow-[0_0_8px_#06b6d4]">{{ nixie.val }}</span>
+          </div>
+          <div class="w-full mt-1 pt-1 border-t border-cyan-500/20 text-center font-mono">
+            <div class="text-[8px] font-bold text-cyan-400 tracking-wider">{{ nixie.l }}</div>
+            <div class="text-[7px] text-slate-400">{{ nixie.sub }}</div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- 2. Matriz de Relación entre Variables -->
-    <div class="p-2 rounded-xl bg-[#090604] border border-[#854d0e]/40 flex flex-col gap-1.5 flex-1 min-h-[140px] overflow-hidden">
-      <div class="flex items-center justify-between text-[8.5px] text-[#fbbf24] font-journal font-bold cursor-pointer" @click="showMatrix = !showMatrix">
-        <span>RELACIÓN ENTRE GASES & TEMPERATURA</span>
-        <span class="text-[7.5px] font-mono text-stone-400">{{ showMatrix ? 'Ocultar' : 'Ver Matriz de Correlación' }}</span>
+      <!-- 2. Matriz de Relación entre Variables -->
+      <div class="p-2 rounded-xl bg-[#050811] border border-cyan-500/20 flex flex-col gap-1.5 flex-1 min-h-[140px] overflow-hidden">
+        <div class="flex items-center justify-between text-[8.5px] text-cyan-300 font-mono font-bold cursor-pointer" @click="showMatrix = !showMatrix">
+          <span>MATRIZ MULTI-VARIABLE • CORRELACIÓN</span>
+          <span class="text-[7.5px] font-mono text-slate-400 underline">{{ showMatrix ? 'Ocultar' : 'Ver Matriz' }}</span>
+        </div>
+        
+        <template v-if="showMatrix">
+          <div class="overflow-x-auto overscroll-contain pb-1">
+            <div class="grid grid-cols-5 gap-1 text-center text-[8.5px] font-mono mt-1 min-w-[240px]">
+              <div class="text-[7.5px] text-slate-500 font-bold" />
+              <div v-for="v in vars" :key="v" class="text-[7.5px] text-cyan-400 font-bold">{{ v }}</div>
+              <template v-for="(row, i) in vars" :key="row">
+                <div class="text-[7.5px] text-cyan-400 font-bold flex items-center justify-end pr-1">{{ row }}</div>
+                <button
+                  v-for="(col, j) in vars"
+                  :key="col"
+                  @click="selectCell(i, j)"
+                  class="py-0.5 rounded border text-[8px] transition cursor-pointer hover:scale-105 active:scale-95 font-mono"
+                  :class="i === j ? 'bg-slate-800 text-slate-300 border-slate-700' : matrix[i][j] > 0.5 ? 'bg-cyan-950/80 text-cyan-300 border-cyan-600/60' : matrix[i][j] < -0.3 ? 'bg-rose-950/80 text-rose-300 border-rose-600/60' : 'bg-slate-900 text-slate-400 border-slate-800'"
+                >
+                  {{ matrix[i][j] > 0 && i !== j ? '+' : '' }}{{ matrix[i][j].toFixed(2) }}
+                </button>
+              </template>
+            </div>
+          </div>
+          <div class="text-[8.5px] font-mono px-2 py-1 rounded bg-slate-950/80 border border-cyan-500/20 text-cyan-200 truncate">
+            {{ activeInsight }}
+          </div>
+        </template>
+        <div v-else class="text-[8.5px] font-sans px-2 py-1.5 rounded bg-slate-950/80 border border-cyan-500/20 text-slate-300 text-center">
+          Sensores estables. Correlación principal: CO2 y CO por ocupación y combustión.
+        </div>
       </div>
-      
-      <template v-if="showMatrix">
-        <div class="overflow-x-auto overscroll-contain pb-1">
-          <div class="grid grid-cols-5 gap-1 text-center text-[8.5px] font-mono mt-1 min-w-[240px]">
-            <div class="text-[7.5px] text-stone-500 font-bold" />
-            <div v-for="v in vars" :key="v" class="text-[7.5px] text-[#fbbf24] font-bold">{{ v }}</div>
-            <template v-for="(row, i) in vars" :key="row">
-              <div class="text-[7.5px] text-[#fbbf24] font-bold flex items-center justify-end pr-1">{{ row }}</div>
-              <button v-for="(col, j) in vars" :key="col" @click="selectCell(i, j)"
-                class="py-0.5 rounded border text-[8px] transition cursor-pointer hover:scale-105 active:scale-95"
-                :class="i === j ? 'bg-stone-800 text-stone-300 border-stone-700' : matrix[i][j] > 0.5 ? 'bg-emerald-950/80 text-emerald-300 border-emerald-600/60' : matrix[i][j] < -0.3 ? 'bg-rose-950/80 text-rose-300 border-rose-600/60' : 'bg-stone-900 text-stone-400 border-stone-800'">
-                {{ matrix[i][j] > 0 && i !== j ? '+' : '' }}{{ matrix[i][j].toFixed(2) }}
+
+      <!-- 3. Pipeline de Descarga de Telemetría (CSV / JSON) -->
+      <div class="p-2 rounded-xl bg-slate-950/80 border border-cyan-500/20 shrink-0">
+        <div class="text-[9px] font-mono font-bold text-cyan-300 mb-1.5 flex items-center justify-between">
+          <span>EXPORTACIÓN DE TELEMETRÍA (CSV / JSON)</span>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <div
+            v-for="vial in [{ id: 'bronze' as const, name: 'Lecturas Crudas', sub: 'Datos en Bruto', glow: 'text-amber-300' }, { id: 'silver' as const, name: 'Filtrados', sub: 'Sin Ruido', glow: 'text-cyan-300' }, { id: 'gold' as const, name: 'Resumen Lugares', sub: 'Promedios', glow: 'text-emerald-300' }]"
+            :key="vial.id"
+            class="flex flex-col items-center p-1.5 rounded-lg bg-slate-900/90 border border-cyan-500/25"
+          >
+            <span class="text-[8px] font-mono font-bold truncate" :class="vial.glow">{{ vial.name }}</span>
+            <span class="text-[7px] font-mono text-slate-400 mb-1">{{ vial.sub }}</span>
+            <div class="flex gap-1 w-full">
+              <button
+                @click="download(vial.id, 'csv')"
+                :disabled="downloading === `${vial.id}-csv`"
+                class="flex-1 py-1.5 rounded bg-slate-950 hover:bg-slate-800 border border-cyan-500/30 hover:border-cyan-400 text-[8.5px] font-mono font-bold text-cyan-300 flex items-center justify-center gap-1 cursor-pointer transition shadow active:scale-95"
+              >
+                <FileSpreadsheet class="w-2.5 h-2.5 text-emerald-400" /> CSV
               </button>
-            </template>
-          </div>
-        </div>
-        <div class="text-[8.5px] font-journal px-2 py-1 rounded bg-[#140e08] border border-[#854d0e]/30 text-amber-200 truncate">
-          {{ activeInsight }}
-        </div>
-      </template>
-      <div v-else class="text-[8.5px] font-journal px-2 py-1.5 rounded bg-[#140e08] border border-[#854d0e]/30 text-amber-200/80 text-center">
-        ⚡ Sensores estables. Correlación principal: CO2 y CO por ocupación y combustión.
-      </div>
-    </div>
-
-    <!-- 3. Descargar Registros (Excel CSV / JSON) -->
-    <div class="p-2 rounded-xl bg-[#0a0705] border border-[#854d0e]/40 shrink-0">
-      <div class="text-[9px] font-journal font-bold text-[#fbbf24] mb-1.5 flex items-center justify-between">
-        <span>Descargar Registros (Excel CSV / JSON)</span>
-      </div>
-      <div class="grid grid-cols-3 gap-2">
-        <div v-for="vial in [{ id: 'bronze' as const, name: 'Lecturas Crudas', sub: 'Datos en Bruto', color: 'from-amber-700 to-amber-900', glow: 'text-amber-400' }, { id: 'silver' as const, name: 'Filtrados', sub: 'Sin Ruido', color: 'from-cyan-600 to-blue-900', glow: 'text-cyan-400' }, { id: 'gold' as const, name: 'Resumen Lugares', sub: 'Promedios', color: 'from-yellow-400 to-amber-600', glow: 'text-yellow-300' }]" :key="vial.id"
-          class="flex flex-col items-center p-1.5 rounded-lg bg-black/50 border border-[#854d0e]/40">
-          <span class="text-[8px] font-journal font-bold truncate" :class="vial.glow">{{ vial.name }}</span>
-          <span class="text-[6.5px] font-journal text-stone-400 mb-1">{{ vial.sub }}</span>
-          <div class="flex gap-1 w-full">
-            <button @click="download(vial.id, 'csv')" :disabled="downloading === `${vial.id}-csv`"
-              class="flex-1 py-1.5 rounded bg-[#1c150c] hover:bg-[#2b1d10] border border-[#854d0e]/60 hover:border-[#fbbf24] text-[8.5px] font-mono font-bold text-amber-400 hover:text-amber-300 flex items-center justify-center gap-1 cursor-pointer transition shadow hover:shadow-[0_0_8px_rgba(245,158,11,0.2)] active:scale-95">
-              <FileSpreadsheet class="w-2 h-2 text-emerald-400" /> CSV
-            </button>
-            <button @click="download(vial.id, 'json')" :disabled="downloading === `${vial.id}-json`"
-              class="flex-1 py-1.5 rounded bg-[#081519] hover:bg-[#0b1e24] border border-cyan-800/60 hover:border-cyan-400 text-[8.5px] font-mono font-bold text-cyan-500 hover:text-cyan-300 flex items-center justify-center gap-1 cursor-pointer transition shadow hover:shadow-[0_0_8px_rgba(6,182,212,0.2)] active:scale-95">
-              <FileCode class="w-2 h-2 text-cyan-400" /> JSON
-            </button>
+              <button
+                @click="download(vial.id, 'json')"
+                :disabled="downloading === `${vial.id}-json`"
+                class="flex-1 py-1.5 rounded bg-slate-950 hover:bg-slate-800 border border-cyan-500/30 hover:border-cyan-400 text-[8.5px] font-mono font-bold text-cyan-300 flex items-center justify-center gap-1 cursor-pointer transition shadow active:scale-95"
+              >
+                <FileCode class="w-2.5 h-2.5 text-cyan-400" /> JSON
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
     </div>
   </MadLabContainer>
 </template>

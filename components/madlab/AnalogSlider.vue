@@ -67,7 +67,7 @@ function handleInput(e: Event) {
 <template>
   <div class="p-2.5 rounded-xl bg-gradient-to-b from-[#160f0a] via-[#100b07] to-[#080503] border-2 border-[#854d0e]/60 shadow-[inset_0_1px_2px_rgba(251,191,36,0.15),0_4px_12px_rgba(0,0,0,0.7)] flex flex-col gap-1.5 select-none group">
     <!-- Header del potenciómetro -->
-    <div class="flex items-center justify-between text-[10px] font-journal">
+    <div class="flex items-center justify-between text-[10px] font-mono">
       <span class="text-[#fbbf24] font-bold tracking-wide flex items-center gap-1">
         <span class="w-1.5 h-1.5 rounded-full bg-[#fbbf24]/70 shadow-[0_0_4px_#fbbf24]" />
         {{ label }}
@@ -122,7 +122,7 @@ function handleInput(e: Event) {
     <!-- Subtexto o leyenda física grabada -->
     <div class="flex items-center justify-between text-[7.5px] font-mono text-stone-400 mt-1">
       <span>Min: {{ min }}</span>
-      <span v-if="sublabel" class="font-journal text-[#d97706] font-semibold">{{ sublabel }}</span>
+      <span v-if="sublabel" class="font-mono text-[#d97706] font-semibold">{{ sublabel }}</span>
       <span>Max: {{ max }}</span>
     </div>
   </div>

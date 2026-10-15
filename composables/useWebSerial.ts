@@ -21,6 +21,7 @@ export function useWebSerial() {
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
   let keepReading = false
   let rxBuffer = ''
+  let onSerialDisconnect: ((event: any) => void) | null = null
 
   function getTimestamp(): string {
     const now = new Date()
@@ -38,6 +39,12 @@ export function useWebSerial() {
 
   async function cleanupResources(logMessage: string) {
     keepReading = false
+    if (typeof navigator !== 'undefined' && 'serial' in navigator && onSerialDisconnect) {
+      try {
+        (navigator as any).serial.removeEventListener('disconnect', onSerialDisconnect)
+      } catch {}
+      onSerialDisconnect = null
+    }
     if (reader) {
       try { await reader.cancel() } catch {}
       try { reader.releaseLock() } catch {}
@@ -84,10 +91,12 @@ export function useWebSerial() {
 
       // Escuchar desconexión física de hardware en el navegador
       if (serial && 'addEventListener' in serial) {
-        const onSerialDisconnect = (event: any) => {
+        if (onSerialDisconnect) {
+          serial.removeEventListener('disconnect', onSerialDisconnect)
+        }
+        onSerialDisconnect = (event: any) => {
           if (port.value && (event.target === port.value || event.port === port.value)) {
             handleConnectionLoss()
-            serial.removeEventListener('disconnect', onSerialDisconnect)
           }
         }
         serial.addEventListener('disconnect', onSerialDisconnect)
@@ -184,6 +193,12 @@ export function useWebSerial() {
   }
 
   onScopeDispose(() => {
+    if (typeof navigator !== 'undefined' && 'serial' in navigator && onSerialDisconnect) {
+      try {
+        (navigator as any).serial.removeEventListener('disconnect', onSerialDisconnect)
+      } catch {}
+      onSerialDisconnect = null
+    }
     if (isConnected.value) disconnect()
   })
 

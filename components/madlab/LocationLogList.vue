@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { Navigation, Pencil, Trash2, Check, X } from 'lucide-vue-next'
-import LabScrew from './LabScrew.vue'
 import type { SessionData } from '~/composables/useAirGuardian'
 
 defineProps<{
@@ -30,93 +29,90 @@ function onConfirmDelete(s: SessionData) {
 </script>
 
 <template>
-  <div class="relative bg-gradient-to-b from-[#181109] via-[#100b06] to-[#080503] border-2 border-[#854d0e]/70 rounded-xl p-2 shrink-0 flex flex-col gap-1.5 shadow-[inset_0_1px_2px_rgba(251,191,36,0.15),0_4px_12px_rgba(0,0,0,0.8)] max-h-36">
-    <LabScrew class="absolute top-1 left-1.5" :rotation="28" />
-    <LabScrew class="absolute top-1 right-1.5" :rotation="-52" />
-
-    <div class="flex items-center justify-between text-[9px] text-[#fbbf24] font-journal font-bold pb-1 border-b border-[#854d0e]/40 px-3">
-      <span class="flex items-center gap-1.5">
-        <Navigation class="w-3 h-3 text-emerald-400" />
-        <span>Lugares Donde Estuvimos (Bitácora de Campo)</span>
+  <div class="relative bg-slate-950/90 border border-cyan-500/25 rounded-lg p-1.5 shrink-0 flex flex-col gap-1 shadow-inner font-mono select-none">
+    <div class="flex items-center justify-between text-[8.5px] text-cyan-300 font-bold pb-0.5 border-b border-cyan-500/20 px-1">
+      <span class="flex items-center gap-1">
+        <Navigation class="w-2.5 h-2.5 text-cyan-400" />
+        <span>BITÁCORA TÁCTICA</span>
       </span>
-      <span class="text-[7.5px] font-mono text-stone-400">Clic para centrar</span>
+      <span class="text-[7px] text-slate-400">Clic p/ centrar</span>
     </div>
 
-    <div class="overflow-y-auto space-y-1.5 pr-1 font-mono max-h-28">
+    <div class="max-h-[90px] overflow-y-auto overscroll-contain space-y-1 pr-1">
       <div
         v-for="(s, idx) in sessions.slice(0, 20)"
         :key="s.id || (s as any).session_id || idx"
         @click="emit('selectSession', s)"
-        class="group p-1.5 rounded-lg border-2 text-[8px] flex items-center justify-between cursor-pointer transition-all duration-150 active:scale-[0.98] gap-2"
+        class="group p-1 rounded-md border text-[7.5px] flex items-center justify-between cursor-pointer transition-all duration-150 active:scale-[0.98] gap-1.5"
         :class="(selectedSessionId && (s.id === selectedSessionId || (s as any).session_id === selectedSessionId))
-          ? 'bg-gradient-to-r from-[#3a200a] to-[#201105] border-[#fbbf24] text-amber-100 shadow-[0_0_12px_rgba(245,158,11,0.4)]'
-          : 'bg-[#0b0805]/90 border-[#854d0e]/50 text-stone-300 hover:border-[#fbbf24]/60 hover:bg-[#160f08]'"
+          ? 'bg-cyan-950/70 border-cyan-400 text-cyan-100 shadow-[0_0_8px_rgba(6,182,212,0.3)]'
+          : 'bg-slate-900/80 border-slate-800 text-slate-300 hover:border-cyan-500/50 hover:bg-slate-850'"
       >
         <div class="truncate flex-1 min-w-0 pr-1">
-          <div class="font-bold text-[9px] text-[#fbbf24] truncate flex items-center gap-1.5">
+          <div class="font-bold text-[8.5px] text-slate-100 truncate flex items-center gap-1">
             <span
-              class="w-2 h-2 rounded-full shrink-0 shadow-[0_0_6px]"
-              :style="{ backgroundColor: getMarkerColor(s.avg_ppm), boxShadow: `0 0 6px ${getMarkerColor(s.avg_ppm)}` }"
+              class="w-1.5 h-1.5 rounded-full shrink-0"
+              :style="{ backgroundColor: getMarkerColor(s.avg_ppm), boxShadow: `0 0 5px ${getMarkerColor(s.avg_ppm)}` }"
             />
             <span class="truncate">{{ s.name }}</span>
           </div>
-          <div class="text-[7.5px] text-stone-400 font-mono mt-0.5 truncate">
+          <div class="text-[7px] text-slate-400 truncate">
             Lat: {{ s.latitude.toFixed(3) }}° | Lng: {{ s.longitude.toFixed(3) }}°
           </div>
         </div>
 
-        <div class="flex items-center gap-2 shrink-0">
+        <div class="flex items-center gap-1.5 shrink-0">
           <!-- Métricas -->
           <div class="text-right shrink-0">
-            <span class="font-bold font-mono text-[9px]" :style="{ color: getMarkerColor(s.avg_ppm) }">
+            <span class="font-bold text-[8.5px]" :style="{ color: getMarkerColor(s.avg_ppm) }">
               {{ s.avg_ppm ? Math.round(s.avg_ppm) : 410 }} PPM
             </span>
-            <div class="text-[7px] text-stone-500 font-journal">{{ s.total_samples || 0 }} lecturas</div>
+            <div class="text-[6.5px] text-slate-500">{{ s.total_samples || 0 }} lecturas</div>
           </div>
 
           <!-- Botones de Acción (Editar / Eliminar) -->
           <div
             v-if="confirmingDeleteId === (s.id || (s as any).session_id)"
-            class="flex items-center gap-1 bg-red-950/90 border border-red-800/80 rounded px-1.5 py-0.5 shadow-[0_0_8px_rgba(239,68,68,0.3)]"
+            class="flex items-center gap-1 bg-red-950/90 border border-red-800/80 rounded px-1 py-0.5 shadow-[0_0_8px_rgba(239,68,68,0.3)]"
             @click.stop
           >
-            <span class="text-[7.5px] text-rose-300 font-mono">¿Borrar?</span>
+            <span class="text-[7px] text-rose-300">¿Borrar?</span>
             <button
               type="button"
               @click.stop="onConfirmDelete(s)"
               class="p-0.5 hover:bg-rose-800 rounded text-rose-300 hover:text-white transition cursor-pointer"
               title="Confirmar eliminación"
             >
-              <Check class="w-3 h-3" />
+              <Check class="w-2.5 h-2.5" />
             </button>
             <button
               type="button"
               @click.stop="confirmingDeleteId = null"
-              class="p-0.5 hover:bg-stone-800 rounded text-stone-400 hover:text-stone-200 transition cursor-pointer"
+              class="p-0.5 hover:bg-slate-800 rounded text-slate-400 hover:text-slate-200 transition cursor-pointer"
               title="Cancelar"
             >
-              <X class="w-3 h-3" />
+              <X class="w-2.5 h-2.5" />
             </button>
           </div>
 
-          <div v-else class="flex items-center gap-1 opacity-95 sm:opacity-80 sm:group-hover:opacity-100 transition-opacity" @click.stop>
+          <div v-else class="flex items-center gap-0.5 opacity-95 sm:opacity-80 sm:group-hover:opacity-100 transition-opacity" @click.stop>
             <button
               type="button"
               @click.stop="emit('editSession', s)"
               aria-label="Editar ubicación"
-              class="min-w-[28px] min-h-[28px] flex items-center justify-center rounded-lg bg-[#25180c] hover:bg-[#382310] border border-[#854d0e]/70 hover:border-[#fbbf24] text-amber-400 hover:text-amber-200 transition shadow-xs cursor-pointer active:scale-90"
+              class="min-w-[22px] min-h-[22px] flex items-center justify-center rounded bg-slate-900 hover:bg-slate-800 border border-cyan-500/30 hover:border-cyan-400 text-cyan-300 hover:text-cyan-100 transition shadow-xs cursor-pointer active:scale-90"
               title="Editar ubicación"
             >
-              <Pencil class="w-3 h-3" />
+              <Pencil class="w-2.5 h-2.5" />
             </button>
             <button
               type="button"
               @click.stop="confirmingDeleteId = (s.id || (s as any).session_id)"
               aria-label="Eliminar ubicación"
-              class="min-w-[28px] min-h-[28px] flex items-center justify-center rounded-lg bg-[#240b0b] hover:bg-[#3b1212] border border-[#7f1d1d]/70 hover:border-[#ef4444] text-rose-400 hover:text-rose-200 transition shadow-xs cursor-pointer active:scale-90"
+              class="min-w-[22px] min-h-[22px] flex items-center justify-center rounded bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/40 hover:border-rose-400 text-rose-400 hover:text-rose-200 transition shadow-xs cursor-pointer active:scale-90"
               title="Eliminar ubicación"
             >
-              <Trash2 class="w-3 h-3" />
+              <Trash2 class="w-2.5 h-2.5" />
             </button>
           </div>
         </div>

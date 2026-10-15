@@ -2,7 +2,6 @@
 import { ref, watch, nextTick } from 'vue'
 import { Usb, Zap, X, Eye, EyeOff, HelpCircle, Wifi, Server, Check, AlertTriangle, Disc, Info } from 'lucide-vue-next'
 import anime from 'animejs'
-import LabScrew from './LabScrew.vue'
 import AmberTerminal from './AmberTerminal.vue'
 import { useWebSerial } from '~/composables/useWebSerial'
 
@@ -14,7 +13,7 @@ const { isSupported, isConnected, isConnecting, logs, connect, disconnect, sendL
 const ssid = ref('')
 const password = ref('')
 const showPassword = ref(false)
-const serverIp = ref(typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? window.location.hostname : '192.168.1.19')
+const serverIp = ref(typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && !window.location.hostname.endsWith('.vercel.app') ? window.location.hostname : '192.168.1.19')
 const isSending = ref(false)
 const showHelp = ref(false)
 const statusNote = ref('')
@@ -80,83 +79,95 @@ async function handleTransmit() {
 </script>
 
 <template>
-  <div v-if="isOpen" ref="backdropRef" class="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/85 backdrop-blur-xs pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] ps-[max(0.75rem,env(safe-area-inset-left))] pe-[max(0.75rem,env(safe-area-inset-right))]">
-    <div ref="modalCardRef" class="bg-gradient-to-b from-[#1c150c] via-[#150f08] to-[#0c0906] border-2 border-[#854d0e] rounded-2xl w-full max-w-xl max-h-[90dvh] overflow-y-auto overscroll-contain p-3.5 sm:p-5 shadow-[0_20px_50px_rgba(0,0,0,0.95)] relative select-none space-y-3">
-      <LabScrew class="absolute top-2 left-2" :rotation="22" /><LabScrew class="absolute top-2 right-2" :rotation="-40" /><LabScrew class="absolute bottom-2 left-2" :rotation="65" /><LabScrew class="absolute bottom-2 right-2" :rotation="-18" />
+  <div v-if="isOpen" ref="backdropRef" class="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/85 backdrop-blur-md pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] ps-[max(0.75rem,env(safe-area-inset-left))] pe-[max(0.75rem,env(safe-area-inset-right))]">
+    <div ref="modalCardRef" class="bg-[#070b14]/95 border border-cyan-500/40 rounded-2xl w-full max-w-xl max-h-[90dvh] overflow-y-auto overscroll-contain p-3.5 sm:p-5 shadow-[0_20px_50px_rgba(0,0,0,0.95),0_0_30px_rgba(6,182,212,0.15)] relative select-none space-y-3 font-mono">
+      <!-- Esquinas Tácticas HUD (Corner Brackets SVG) -->
+      <svg class="absolute top-1.5 left-1.5 w-3.5 h-3.5 text-cyan-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none">
+        <path d="M1 13V3C1 1.89543 1.89543 1 3 1H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+      </svg>
+      <svg class="absolute top-1.5 right-1.5 w-3.5 h-3.5 text-cyan-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none">
+        <path d="M13 13V3C13 1.89543 12.1046 1 11 1H1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+      </svg>
+      <svg class="absolute bottom-1.5 left-1.5 w-3.5 h-3.5 text-cyan-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none">
+        <path d="M1 1V11C1 12.1046 1.89543 13 3 13H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+      </svg>
+      <svg class="absolute bottom-1.5 right-1.5 w-3.5 h-3.5 text-cyan-400/50 pointer-events-none" viewBox="0 0 14 14" fill="none">
+        <path d="M13 1V11C13 12.1046 12.1046 13 11 13H1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+      </svg>
 
-      <!-- Cabecera Steampunk -->
-      <div class="flex items-center justify-between border-b border-[#854d0e]/60 pb-2 px-1 sm:px-2">
+      <!-- Cabecera Táctica -->
+      <div class="flex items-center justify-between border-b border-cyan-500/20 pb-2 px-1 sm:px-2">
         <div class="flex items-center gap-2">
-          <div class="w-7 h-7 rounded bg-[#2c1a0e] border border-[#854d0e] flex items-center justify-center text-amber-400 shadow-[inset_0_1px_2px_rgba(0,0,0,0.8)] shrink-0">
-            <Usb class="w-4 h-4" />
+          <div class="w-7 h-7 rounded bg-slate-900 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shadow-inner shrink-0">
+            <Usb class="w-4 h-4 text-cyan-400" />
           </div>
           <div>
-            <h3 class="text-xs sm:text-sm font-journal font-bold text-[#fbbf24] flex items-center gap-1.5">
-              <span>Aprovisionamiento Wi-Fi por USB</span>
+            <h3 class="text-xs sm:text-sm font-scifi font-bold text-white tracking-wider flex items-center gap-1.5">
+              <span>APROVISIONAMIENTO WI-FI POR USB</span>
             </h3>
-            <p class="text-[8.5px] sm:text-[9px] font-mono text-stone-400">Web Serial Protocol @ 115200 Baudios</p>
+            <p class="text-[8.5px] sm:text-[9px] font-mono text-slate-400">Web Serial Protocol @ 115200 Baudios</p>
           </div>
         </div>
 
         <div class="flex items-center gap-1 sm:gap-1.5">
-          <button type="button" @click="showHelp = !showHelp" class="min-h-[36px] px-2.5 py-1 rounded-lg bg-[#1f1408] border border-[#854d0e]/60 text-amber-300 hover:text-amber-100 text-[10px] font-journal transition flex items-center gap-1 cursor-pointer active:scale-95" title="Instrucciones de conexión">
-            <HelpCircle class="w-3.5 h-3.5 text-amber-400" /><span class="hidden sm:inline">Guía UX</span>
+          <button type="button" @click="showHelp = !showHelp" class="min-h-[36px] px-2.5 py-1 rounded-lg bg-slate-900 border border-cyan-500/30 text-cyan-300 hover:text-cyan-100 text-[10px] transition flex items-center gap-1 cursor-pointer active:scale-95" title="Instrucciones de conexión">
+            <HelpCircle class="w-3.5 h-3.5 text-cyan-400" /><span class="hidden sm:inline">Guía UX</span>
           </button>
-          <button type="button" @click="emit('close')" aria-label="Cerrar modal" title="Cerrar modal" class="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-stone-400 hover:text-amber-200 hover:bg-stone-900/60 cursor-pointer transition active:scale-90">
+          <button type="button" @click="emit('close')" aria-label="Cerrar modal" title="Cerrar modal" class="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg text-slate-400 hover:text-cyan-200 hover:bg-slate-900 cursor-pointer transition active:scale-90">
             <X class="w-4 h-4" />
           </button>
         </div>
       </div>
 
       <!-- Alerta de Compatibilidad Web Serial -->
-      <div v-if="!isSupported" class="p-2 rounded-xl bg-amber-950/70 border border-amber-600/80 text-amber-200 text-[10px] font-mono flex items-start gap-2">
+      <div v-if="!isSupported" class="p-2 rounded-xl bg-amber-950/60 border border-amber-500/60 text-amber-200 text-[10px] font-mono flex items-start gap-2">
         <AlertTriangle class="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
         <span>Web Serial API no detectada en este navegador. Utiliza Google Chrome, Microsoft Edge u Opera en PC o Mac con permisos USB.</span>
       </div>
 
       <!-- Panel Desplegable de Ayuda UX -->
-      <div v-if="showHelp" class="p-2.5 rounded-xl bg-[#0c0906] border border-[#854d0e]/60 text-stone-300 text-[10.5px] font-journal space-y-1">
-        <p class="text-amber-300 font-bold text-[11px] flex items-center gap-1"><Disc class="w-3 h-3 text-amber-400" /> Protocolo de Enlace Físico al Microcontrolador:</p>
-        <ol class="list-decimal list-inside space-y-0.5 text-[10px] text-stone-300 font-mono">
-          <li>Conecta el ESP32 al PC con un <span class="text-amber-300">cable USB de datos</span> (no solo de carga).</li>
-          <li>Pulsa <span class="text-amber-300 font-bold">"Conectar ESP32 (USB)"</span> y selecciona el puerto serie (CP2102/CH340).</li>
-          <li><span class="text-amber-300">Auto-reinicio:</span> El ESP32 se auto-reinicia por diseño al abrir el puerto serie (DTR/RTS).</li>
-          <li>Digita tu SSID de 2.4 GHz, clave e IP de servidor y pulsa <span class="text-amber-300 font-bold">"Transmitir al ESP32"</span>.</li>
+      <div v-if="showHelp" class="p-2.5 rounded-xl bg-slate-950 border border-cyan-500/30 text-slate-300 text-[10.5px] font-sans space-y-1">
+        <p class="text-cyan-300 font-mono font-bold text-[11px] flex items-center gap-1"><Disc class="w-3 h-3 text-cyan-400" /> Protocolo de Enlace Físico al Microcontrolador:</p>
+        <ol class="list-decimal list-inside space-y-0.5 text-[10px] text-slate-300 font-mono">
+          <li>Conecta el ESP32 al PC con un <span class="text-cyan-300">cable USB de datos</span> (no solo de carga).</li>
+          <li>Pulsa <span class="text-cyan-300 font-bold">"Conectar ESP32 (USB)"</span> y selecciona el puerto serie (CP2102/CH340).</li>
+          <li><span class="text-cyan-300">Auto-reinicio:</span> El ESP32 se auto-reinicia por diseño al abrir el puerto serie (DTR/RTS).</li>
+          <li>Digita tu SSID de 2.4 GHz, clave e IP de servidor y pulsa <span class="text-cyan-300 font-bold">"Transmitir al ESP32"</span>.</li>
           <li>El ESP32 guardará la configuración en memoria flash NVS e iniciará el enlace Wi-Fi.</li>
         </ol>
       </div>
 
-      <!-- Formulario de Configuración de Red (Anti Auto-Zoom en iOS: text-base sm:text-xs) -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs font-journal">
+      <!-- Formulario de Configuración de Red -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs font-mono">
         <div>
-          <label class="block text-[10px] font-bold text-amber-200 mb-0.5 flex items-center gap-1"><Wifi class="w-3 h-3 text-amber-400" /> Red Wi-Fi (SSID)</label>
-          <input v-model="ssid" type="text" placeholder="Mi_Red_WiFi" class="w-full bg-[#080604] border border-[#854d0e]/70 rounded-xl px-3 py-2 sm:py-1.5 text-base sm:text-xs text-white placeholder-stone-600 focus:border-[#fbbf24] focus:outline-none font-mono" />
+          <label class="block text-[10px] font-bold text-slate-300 mb-0.5 flex items-center gap-1"><Wifi class="w-3 h-3 text-cyan-400" /> Red Wi-Fi (SSID)</label>
+          <input v-model="ssid" type="text" placeholder="Mi_Red_WiFi" class="w-full bg-slate-900 border border-cyan-500/30 rounded-xl px-3 py-2 sm:py-1.5 text-base sm:text-xs text-white placeholder-slate-600 focus:border-cyan-400 focus:outline-none font-mono" />
         </div>
         <div>
-          <label class="block text-[10px] font-bold text-amber-200 mb-0.5">Clave Wi-Fi</label>
+          <label class="block text-[10px] font-bold text-slate-300 mb-0.5">Clave Wi-Fi</label>
           <div class="relative">
-            <input v-model="password" :type="showPassword ? 'text' : 'password'" placeholder="••••••••" class="w-full bg-[#080604] border border-[#854d0e]/70 rounded-xl px-3 py-2 sm:py-1.5 pr-10 text-base sm:text-xs text-white placeholder-stone-600 focus:border-[#fbbf24] focus:outline-none font-mono" />
-            <button type="button" @click="showPassword = !showPassword" aria-label="Mostrar u ocultar contraseña" class="absolute right-0 top-0 bottom-0 min-w-[40px] flex items-center justify-center text-stone-400 hover:text-amber-300 cursor-pointer">
+            <input v-model="password" :type="showPassword ? 'text' : 'password'" placeholder="••••••••" class="w-full bg-slate-900 border border-cyan-500/30 rounded-xl px-3 py-2 sm:py-1.5 pr-10 text-base sm:text-xs text-white placeholder-slate-600 focus:border-cyan-400 focus:outline-none font-mono" />
+            <button type="button" @click="showPassword = !showPassword" aria-label="Mostrar u ocultar contraseña" class="absolute right-0 top-0 bottom-0 min-w-[40px] flex items-center justify-center text-slate-400 hover:text-cyan-300 cursor-pointer">
               <EyeOff v-if="showPassword" class="w-4 h-4" /><Eye v-else class="w-4 h-4" />
             </button>
           </div>
         </div>
         <div>
-          <label class="block text-[10px] font-bold text-amber-200 mb-0.5 flex items-center gap-1"><Server class="w-3 h-3 text-amber-400" /> Servidor Backend</label>
-          <input v-model="serverIp" type="text" placeholder="192.168.1.19" class="w-full bg-[#080604] border border-[#854d0e]/70 rounded-xl px-3 py-2 sm:py-1.5 text-base sm:text-xs text-white placeholder-stone-600 focus:border-[#fbbf24] focus:outline-none font-mono" />
+          <label class="block text-[10px] font-bold text-slate-300 mb-0.5 flex items-center gap-1"><Server class="w-3 h-3 text-cyan-400" /> Servidor Backend</label>
+          <input v-model="serverIp" type="text" placeholder="192.168.1.19" class="w-full bg-slate-900 border border-cyan-500/30 rounded-xl px-3 py-2 sm:py-1.5 text-base sm:text-xs text-white placeholder-slate-600 focus:border-cyan-400 focus:outline-none font-mono" />
         </div>
       </div>
 
       <!-- Barra de Acciones USB & Transmisión -->
-      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-1">
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-1 font-mono">
         <button
           type="button"
           :disabled="!isSupported || isConnecting"
           @click="handleToggleConnect"
-          class="min-h-[42px] sm:min-h-[38px] px-3.5 py-2 sm:py-1.5 rounded-xl border text-xs font-bold font-journal transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50"
-          :class="isConnected ? 'bg-[#451a03] border-rose-600 text-rose-200 hover:bg-rose-900/80 shadow-[0_2px_8px_rgba(225,29,72,0.4)]' : 'bg-gradient-to-r from-[#291e10] to-[#1c1409] border-[#854d0e] hover:border-[#fbbf24] text-amber-300 shadow-[0_2px_8px_rgba(0,0,0,0.6)]'"
+          class="min-h-[42px] sm:min-h-[38px] px-3.5 py-2 sm:py-1.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50"
+          :class="isConnected ? 'bg-rose-950/70 border-rose-500 text-rose-300 hover:bg-rose-900/80 shadow-[0_0_10px_rgba(244,63,94,0.3)]' : 'bg-slate-900 border-cyan-500/40 hover:border-cyan-400 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.15)]'"
         >
-          <Usb class="w-3.5 h-3.5 shrink-0" :class="isConnected ? 'text-rose-400' : 'text-amber-400'" />
+          <Usb class="w-3.5 h-3.5 shrink-0" :class="isConnected ? 'text-rose-400' : 'text-cyan-400'" />
           <span>{{ isConnecting ? 'Enlazando...' : (isConnected ? 'Desconectar USB' : 'Conectar ESP32 (USB)') }}</span>
         </button>
 
@@ -165,9 +176,9 @@ async function handleTransmit() {
           type="button"
           :disabled="!isConnected || isSending"
           @click="handleTransmit"
-          class="min-h-[42px] sm:min-h-[38px] px-4 py-2 sm:py-1.5 bg-gradient-to-r from-[#b45309] to-[#78350f] hover:from-[#d97706] hover:to-[#92400e] border border-[#fbbf24]/80 text-[#fef3c7] rounded-xl text-xs font-bold font-journal transition shadow-[0_2px_10px_rgba(180,83,9,0.5)] cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-40"
+          class="min-h-[42px] sm:min-h-[38px] px-4 py-2 sm:py-1.5 bg-cyan-600 hover:bg-cyan-500 border border-cyan-400 text-white rounded-xl text-xs font-bold transition shadow-[0_0_15px_rgba(6,182,212,0.4)] cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-40"
         >
-          <Zap class="w-3.5 h-3.5 text-[#fbbf24] shrink-0" />
+          <Zap class="w-3.5 h-3.5 text-white shrink-0" />
           <span>{{ isSending ? 'Transmitiendo...' : 'Transmitir al ESP32' }}</span>
         </button>
       </div>

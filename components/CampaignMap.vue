@@ -45,16 +45,16 @@ function getSvgY(lat: number) {
   >
     <div class="flex items-center justify-between border-b pb-2.5" :class="theme === 'white-lab' ? 'border-slate-200' : 'border-slate-800/80'">
       <div>
-        <h3 class="text-xs font-journal font-bold uppercase tracking-wider flex items-center gap-2" :class="theme === 'white-lab' ? 'text-slate-900' : 'text-white'">
+        <h3 class="text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-2" :class="theme === 'white-lab' ? 'text-slate-900' : 'text-white'">
           <MapPin class="w-3.5 h-3.5 text-emerald-500" />
           Lugares Medidos & GPS
         </h3>
-        <p class="text-[10px] font-journal" :class="theme === 'white-lab' ? 'text-slate-500' : 'text-slate-400'">Puntos de toma de muestras de aire</p>
+        <p class="text-[10px] font-mono" :class="theme === 'white-lab' ? 'text-slate-500' : 'text-slate-400'">Puntos de toma de muestras de aire</p>
       </div>
 
       <button 
         @click="emit('openCreateModal')"
-        class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] px-2.5 py-1 rounded-lg transition active:scale-95 flex items-center gap-1 shadow cursor-pointer font-journal"
+        class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] px-2.5 py-1 rounded-lg transition active:scale-95 flex items-center gap-1 shadow cursor-pointer font-mono"
       >
         <Plus class="w-3 h-3" />
         📍 Marcar Lugar

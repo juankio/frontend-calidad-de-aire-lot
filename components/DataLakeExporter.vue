@@ -12,6 +12,8 @@ const props = withDefaults(defineProps<{
 })
 
 const downloading = ref<string | null>(null)
+const config = useRuntimeConfig()
+const apiBase = ((config.public.apiBase as string) || 'https://servidor-taller.tailf19567.ts.net:10000').replace(/\/+$/, '')
 
 interface LayerConfig {
   id: 'bronze' | 'silver' | 'gold'
@@ -48,41 +50,59 @@ function triggerDownload(content: string, filename: string, type: 'csv' | 'json'
   URL.revokeObjectURL(url)
 }
 
-function exportData(layer: 'bronze' | 'silver' | 'gold', format: 'csv' | 'json') {
+async function exportData(layer: 'bronze' | 'silver' | 'gold', format: 'csv' | 'json') {
   const key = `${layer}-${format}`
   downloading.value = key
   const ts = new Date().toISOString().replace(/[:.]/g, '-')
 
-  setTimeout(() => {
-    let payload: any[] = []
-    if (layer === 'gold') {
-      payload = (props.sessions || []).map(s => ({
-        campaign_id: s.id, name: s.name, lat: s.latitude, lng: s.longitude,
-        avg_ppm: s.avg_ppm || 420, max_ppm: s.max_ppm || 580, samples: s.total_samples || 120
-      }))
-      if (!payload.length) payload = [{ campaign: 'Lab Sentinel', lat: 4.142, lng: -73.626, avg_ppm: 435, max_ppm: 610, samples: 450 }]
-    } else if (layer === 'silver') {
-      payload = Array.from({ length: 20 }, (_, i) => ({
-        timestamp: Date.now() - (19 - i) * 5000,
-        ppm: Math.round(410 + Math.sin(i) * 35),
-        delta_1m: +(Math.cos(i) * 4.2).toFixed(1),
-        predicted_15m: Math.round(425 + Math.sin(i) * 40),
-        risk_status: i > 15 ? 'WARNING_PREDICTIVE' : 'OPTIMAL'
-      }))
-    } else {
-      payload = Array.from({ length: 20 }, (_, i) => ({
-        device_id: 'ESP32-SENTINEL-01',
-        raw_adc: 1420 + Math.floor(Math.random() * 80),
-        raw_temp_adc: 540,
-        co_adc: 310,
-        timestamp: Date.now() - (19 - i) * 5000
-      }))
+  try {
+    const res = await fetch(`${apiBase}/api/analytics/export/${layer}?format=${format}`)
+    if (res.ok) {
+      if (format === 'csv') {
+        const text = await res.text()
+        triggerDownload(text, `air_guardian_${layer}_${ts}.csv`, 'csv')
+        downloading.value = null
+        return
+      } else {
+        const json = await res.json()
+        const dataToSave = json.data || json
+        triggerDownload(JSON.stringify(dataToSave, null, 2), `air_guardian_${layer}_${ts}.json`, 'json')
+        downloading.value = null
+        return
+      }
     }
+  } catch {
+    // Fallback local si el backend está desconectado
+  }
 
-    const content = format === 'csv' ? generateCsv(payload) : JSON.stringify(payload, null, 2)
-    triggerDownload(content, `air_guardian_${layer}_${ts}.${format}`, format)
-    downloading.value = null
-  }, 400)
+  let payload: any[] = []
+  if (layer === 'gold') {
+    payload = (props.sessions || []).map(s => ({
+      campaign_id: s.id, name: s.name, lat: s.latitude, lng: s.longitude,
+      avg_ppm: s.avg_ppm || 420, max_ppm: s.max_ppm || 580, samples: s.total_samples || 120
+    }))
+    if (!payload.length) payload = [{ campaign: 'Lab Sentinel', lat: 4.142, lng: -73.626, avg_ppm: 435, max_ppm: 610, samples: 450 }]
+  } else if (layer === 'silver') {
+    payload = Array.from({ length: 20 }, (_, i) => ({
+      timestamp: Date.now() - (19 - i) * 5000,
+      ppm: Math.round(410 + Math.sin(i) * 35),
+      delta_1m: +(Math.cos(i) * 4.2).toFixed(1),
+      predicted_15m: Math.round(425 + Math.sin(i) * 40),
+      risk_status: i > 15 ? 'WARNING_PREDICTIVE' : 'OPTIMAL'
+    }))
+  } else {
+    payload = Array.from({ length: 20 }, (_, i) => ({
+      device_id: 'ESP32-SENTINEL-01',
+      raw_adc: 1420 + Math.floor(Math.random() * 80),
+      raw_temp_adc: 540,
+      co_adc: 310,
+      timestamp: Date.now() - (19 - i) * 5000
+    }))
+  }
+
+  const content = format === 'csv' ? generateCsv(payload) : JSON.stringify(payload, null, 2)
+  triggerDownload(content, `air_guardian_${layer}_${ts}.${format}`, format)
+  downloading.value = null
 }
 </script>
 

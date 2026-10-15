@@ -17,14 +17,15 @@
     "lucide-vue-next": "^0.475.0",
     "nuxt": "^3.15.4",
     "playwright": "^1.62.1",
+    "three": "^0.186.0",
     "vue": "^3.5.13",
     "vue-chartjs": "^5.3.2",
-    "vue-router": "^4.5.0",
-    "ws": "^8.21.3"
+    "vue-router": "^4.5.0"
   },
   "devDependencies": {
     "@types/animejs": "^3.1.13",
     "@types/node": "^22.13.4",
+    "@types/three": "^0.186.0",
     "animejs": "^3.2.2",
     "typescript": "^5.7.3"
   }

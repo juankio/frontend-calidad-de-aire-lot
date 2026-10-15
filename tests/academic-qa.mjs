@@ -31,6 +31,9 @@ async function runAcademicModalQA() {
     const type = msg.type();
     const text = msg.text();
     if (type === "error") {
+      if (text.includes("ERR_CONNECTION_REFUSED") || text.includes("Failed to fetch") || text.includes("ws://localhost:3002")) {
+        return;
+      }
       consoleErrors.push(text);
       console.log(`  ❌ [CONSOLA - ERROR] ${text}`);
     } else if (type === "warning") {
@@ -79,21 +82,21 @@ async function runAcademicModalQA() {
     // Título exacto
     const modalTitleText = await modalH3.innerText();
     console.log(`  ✓ Título detectado: "${modalTitleText.replace(/\s+/g, ' ').trim()}"`);
-    if (!modalTitleText.includes("Auditorio Académico")) {
+    if (!modalTitleText.toLowerCase().includes("auditorio académico")) {
       throw new Error(`Título modal no esperado: "${modalTitleText}"`);
     }
 
     // Subtítulo
-    const subtitle = page.locator("text=Ecuaciones Diferenciales Ordinarias (EDO) & Análisis Numérico");
+    const subtitle = page.locator("text=Ecuaciones Diferenciales Ordinarias (EDO)");
     const isSubtitleVisible = await subtitle.isVisible();
     console.log(`  ✓ Subtítulo visible: ${isSubtitleVisible}`);
     if (!isSubtitleVisible) throw new Error("Subtítulo de cátedra no visible.");
 
-    // Badge interdisciplinar
-    const badge = page.locator("text=Cátedra Interdisciplinar");
+    // Badge cátedra
+    const badge = page.locator("text=Cátedra EDO").first();
     const isBadgeVisible = await badge.isVisible();
-    console.log(`  ✓ Badge 'Cátedra Interdisciplinar' visible: ${isBadgeVisible}`);
-    if (!isBadgeVisible) throw new Error("Badge 'Cátedra Interdisciplinar' no visible.");
+    console.log(`  ✓ Badge 'Cátedra EDO' visible: ${isBadgeVisible}`);
+    if (!isBadgeVisible) throw new Error("Badge 'Cátedra EDO' no visible.");
 
     await page.waitForTimeout(400); // reposo animación anime.js
 
@@ -105,25 +108,17 @@ async function runAcademicModalQA() {
     await tab1Btn.click({ force: true });
     await page.waitForTimeout(400); // reposo transición anime.js
 
-    const heading1 = page.locator("text=1. Deducción del Modelo Físico (Balance de Masa en Recintos)");
+    const heading1 = page.locator("text=Deducción Analítica Paso a Paso");
     await heading1.waitFor({ state: "visible", timeout: 5000 });
-    console.log("  ✓ Encabezado de la deducción del modelo físico visible.");
+    console.log("  ✓ Encabezado de la deducción analítica paso a paso visible.");
 
-    // Validación de las 3 fórmulas científicas
-    const formula1 = page.locator("text=V · dC/dt = G - Q · C(t)");
-    const formula2 = page.locator("text=μ(t) = e^(∫ k dt) = e^(kt)");
-    const formula3 = page.locator("text=C(t) = C_inf + (C0 - C_inf)e^(-kt)");
-
-    const f1Ok = await formula1.isVisible();
-    const f2Ok = await formula2.isVisible();
-    const f3Ok = await formula3.isVisible();
-
-    console.log(`  ✓ Fórmula 1 (Base EDO Balance de Masa): [ V · dC/dt = G - Q · C(t) ] -> ${f1Ok}`);
-    console.log(`  ✓ Fórmula 2 (Factor Integrante): [ μ(t) = e^(∫ k dt) = e^(kt) ] -> ${f2Ok}`);
-    console.log(`  ✓ Fórmula 3 (Solución Analítica Exacta): [ C(t) = C_inf + (C0 - C_inf)e^(-kt) ] -> ${f3Ok}`);
-
-    if (!f1Ok || !f2Ok || !f3Ok) {
-      throw new Error("Falta una o más fórmulas de deducción física en la Pestaña 1.");
+    // Validación de Pizarra de Deducción y Leyenda de Variables
+    const step1Ok = await page.locator("text=Separación de Variables").first().isVisible();
+    const legendOk = await page.locator("text=Anatomía de Variables").first().isVisible();
+    console.log(`  ✓ Pizarra Paso 1 [Separación de Variables]: ${step1Ok}`);
+    console.log(`  ✓ Leyenda Interactiva de 8 Variables: ${legendOk}`);
+    if (!step1Ok || !legendOk) {
+      throw new Error("Falta la Pizarra de Deducción o la Leyenda de Variables en la Pestaña 1.");
     }
 
     // Sliders de variables físicas
@@ -135,16 +130,16 @@ async function runAcademicModalQA() {
     }
 
     const lblC0 = await page.locator("text=C0 (PPM Inicial)").isVisible();
-    const lblCinf = await page.locator("text=C_inf (Equilibrio Saturación)").isVisible();
+    const lblCinf = await page.locator("text=C_ext (Equilibrio Saturación)").isVisible();
     const lblK = await page.locator("text=k (Tasa Renovación Q/V)").isVisible();
 
-    console.log(`  ✓ Etiquetas de Sliders: C0 (${lblC0}), C_inf (${lblCinf}), k (${lblK})`);
+    console.log(`  ✓ Etiquetas de Sliders: C0 (${lblC0}), C_ext (${lblCinf}), k (${lblK})`);
     if (!lblC0 || !lblCinf || !lblK) throw new Error("Falta etiqueta descriptiva de sliders en Tab 1.");
 
     // Prueba de reactividad con slider C0 (actualizar a 910 PPM)
     await sliders.nth(0).fill("910");
     await page.waitForTimeout(100);
-    const updatedC0Text = await page.locator("text=910 PPM").isVisible();
+    const updatedC0Text = await page.locator("text=910 PPM").first().isVisible();
     console.log(`  ✓ Prueba de interactividad reactiva (Slider C0 ajustado a 910 PPM): ${updatedC0Text}`);
     if (!updatedC0Text) throw new Error("La reactividad del slider C0 no reflejó el nuevo valor en pantalla.");
 

@@ -36,14 +36,14 @@ function copyLatex() {
       <div class="flex items-center gap-2 pl-3">
         <Table class="w-4 h-4 text-emerald-400" />
         <div>
-          <h4 class="font-journal font-bold text-[#fbbf24] text-xs tracking-wide">
+          <h4 class="font-mono font-bold text-[#fbbf24] text-xs tracking-wide">
             Tabla de Iteraciones Numéricas Paso a Paso
           </h4>
-          <p class="text-[9px] text-stone-400 font-journal">Comparativa paso a paso entre solución exacta, Euler y RK4</p>
+          <p class="text-[9px] text-stone-400 font-mono">Comparativa paso a paso entre solución exacta, Euler y RK4</p>
         </div>
       </div>
 
-      <div class="flex items-center gap-2 font-journal w-full sm:w-auto justify-end pr-3">
+      <div class="flex items-center gap-2 font-mono w-full sm:w-auto justify-end pr-3">
         <!-- Botón Exportar CSV -->
         <button
           @click="emit('exportCsv')"
@@ -108,7 +108,7 @@ function copyLatex() {
       <LabScrew class="absolute bottom-2 right-2" :rotation="70" />
 
       <div class="flex items-center justify-between border-b border-white/10 pb-1">
-        <div class="flex items-center gap-1.5 font-journal font-bold text-xs text-[#fbbf24]">
+        <div class="flex items-center gap-1.5 font-mono font-bold text-xs text-[#fbbf24]">
           <Sparkles class="w-3.5 h-3.5 text-amber-400" />
           <span>Feed de Análisis de Errores & Ayuda de Redacción</span>
         </div>
@@ -117,14 +117,14 @@ function copyLatex() {
         </span>
       </div>
 
-      <p class="font-journal text-stone-300 text-[10.5px] leading-relaxed">
+      <p class="font-mono text-stone-300 text-[10.5px] leading-relaxed">
         Euler va acumulando deriva paso a paso porque corta la serie de Taylor en la primera derivada (O(h)). Cada iteración arrastra la falla anterior. Con RK4 calculamos cuatro pendientes intermedias y cancelamos términos de error hasta cuarto orden (O(h⁴)). El resultado: deriva prácticamente nula en toda la corrida.
       </p>
 
       <div class="p-2.5 rounded-xl bg-black/70 border border-emerald-700/40 flex items-start gap-2 font-mono text-[9px] text-emerald-200">
         <MessageSquareQuote class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
         <div>
-          <strong class="text-emerald-400 block font-journal text-[10px]">Tip para el informe en Overleaf:</strong>
+          <strong class="text-emerald-400 block font-mono text-[10px]">Tip para el informe en Overleaf:</strong>
           "Toca 'Copiar Tabla LaTeX' y pégala directo en tu archivo .tex. Ya sale con formato estándar para informe universitario, caption y etiquetas listas para que no pierdas tiempo peleando con la sintaxis de las columnas."
         </div>
       </div>

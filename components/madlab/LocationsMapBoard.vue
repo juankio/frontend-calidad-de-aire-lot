@@ -2,7 +2,6 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick, inject, type Ref } from 'vue'
 import { Plus, Compass, MapPin } from 'lucide-vue-next'
 import MadLabContainer from './MadLabContainer.vue'
-import LabScrew from './LabScrew.vue'
 import LocationLogList from './LocationLogList.vue'
 import type { SessionData } from '~/composables/useAirGuardian'
 
@@ -71,10 +70,14 @@ async function initLeaflet() {
       attributionControl: false
     })
 
-    // Capa de mapa táctica nocturna (OpenStreetMap con filtro dark radar, sin marcas de agua ni bloqueo de API key)
+    leafletMap.whenReady(() => {
+      leafletMap.invalidateSize()
+    })
+
+    // Capa de mapa táctica nocturna (Fallback táctico limpio OpenStreetMap sin API key ni filtros destructivos)
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      className: 'dark-tactical-tiles'
+      className: 'clean-dark-tactical-tiles'
     }).addTo(leafletMap)
 
     markersGroup = L.layerGroup().addTo(leafletMap)
@@ -196,6 +199,12 @@ onMounted(() => {
   setTimeout(() => {
     initLeaflet()
   }, 100)
+  setTimeout(() => {
+    if (leafletMap) leafletMap.invalidateSize()
+  }, 300)
+  setTimeout(() => {
+    if (leafletMap) leafletMap.invalidateSize()
+  }, 600)
 })
 
 onUnmounted(() => {
@@ -208,50 +217,44 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <MadLabContainer v-model:expanded="isContainerExpanded" no-padding>
+  <MadLabContainer v-model:expanded="isContainerExpanded" no-padding class="flex-1 min-h-0 h-full">
     <div
-      class="p-3 w-full h-full flex flex-col gap-2 select-none relative"
-      :class="isContainerExpanded ? 'overflow-y-auto max-h-full' : 'overflow-hidden'"
+      class="p-2 sm:p-2.5 w-full h-full flex flex-col justify-between gap-1.5 select-none relative"
+      :class="isContainerExpanded ? 'overflow-y-auto max-h-full' : 'overflow-hidden flex-1 min-h-0'"
     >
-      <!-- Remaches esquineros de latón en las cuatro esquinas -->
-      <LabScrew class="absolute top-2 left-2 z-20 pointer-events-none" :rotation="45" />
-      <LabScrew class="absolute top-2 right-2 z-20 pointer-events-none" :rotation="-30" />
-      <LabScrew class="absolute bottom-2 left-2 z-20 pointer-events-none" :rotation="75" />
-      <LabScrew class="absolute bottom-2 right-2 z-20 pointer-events-none" :rotation="-15" />
-
-      <!-- Cabecera de Mapas & Cartografía de Expedición -->
-      <div class="flex items-center justify-between pb-1.5 border-b border-[#854d0e]/50 shrink-0 px-3">
-        <div class="flex items-center gap-2">
-          <Compass class="w-4 h-4 text-emerald-400" />
+      <!-- Cabecera de Mapas & Cartografía Táctica -->
+      <div class="flex items-center justify-between pb-1 border-b border-cyan-500/20 shrink-0 px-1 font-mono">
+        <div class="flex items-center gap-1.5 sm:gap-2">
+          <Compass class="w-3.5 h-3.5 text-cyan-400" />
           <div>
-            <span class="text-[11px] font-journal font-bold tracking-wider text-[#fbbf24]">Cartografía de Expedición</span>
-            <span class="text-[8.5px] text-stone-400 ml-1.5 font-mono">({{ sessions.length }} puntos)</span>
+            <span class="text-[10px] sm:text-[11px] font-bold tracking-wider text-slate-100 uppercase">CARTOGRAFÍA & GPS</span>
+            <span class="text-[8px] text-cyan-400/80 ml-1">({{ sessions.length }} pts)</span>
           </div>
         </div>
         <button
           @click="emit('openCreateModal')"
-          class="px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#92400e] via-[#b45309] to-[#78350f] hover:from-[#b45309] hover:to-[#92400e] border border-[#fbbf24]/80 text-[#fef3c7] text-[9.5px] font-journal font-bold flex items-center gap-1.5 shadow-[0_2px_8px_rgba(180,83,9,0.4)] cursor-pointer active:scale-95 transition-all"
+          class="px-2 py-0.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-500/60 text-emerald-200 text-[8.5px] sm:text-[9px] font-bold flex items-center gap-1 shadow-[0_0_10px_rgba(16,185,129,0.2)] cursor-pointer active:scale-95 transition-all"
         >
-          <MapPin class="w-3 h-3 text-[#fbbf24]" />
-          <span>Marcar Lugar</span>
+          <MapPin class="w-2.5 h-2.5 text-emerald-400" />
+          <span>Marcar Punto</span>
         </button>
       </div>
 
-      <!-- Contenedor del Mapa Táctico con Marco de Cobre Estriado -->
+      <!-- Contenedor del Mapa Táctico con Marco Mecha -->
       <div
-        class="w-full rounded-xl overflow-hidden border-2 border-[#854d0e] relative shadow-[inset_0_0_20px_rgba(0,0,0,0.85)] bg-[#040608] transition-all duration-300"
-        :class="isContainerExpanded ? 'h-[55vh] min-h-[460px]' : 'flex-1 min-h-[135px]'"
+        class="w-full rounded-lg overflow-hidden border border-cyan-500/25 relative shadow-[0_8px_24px_rgba(0,0,0,0.7)] bg-slate-900/90 transition-all duration-300"
+        :class="isContainerExpanded ? 'h-[55vh] min-h-[460px]' : 'flex-1 min-h-[110px]'"
       >
         <div ref="mapContainer" class="w-full h-full z-10" />
 
-        <div class="absolute top-2 right-2 z-20 pointer-events-none">
-          <span class="px-2 py-0.5 rounded-lg bg-black/85 border border-[#854d0e]/70 text-[8px] font-mono text-amber-300 shadow backdrop-blur-xs">
-            CartoDB Táctico Nocturno • OpenStreetMap CartoDB
+        <div class="absolute top-1.5 right-1.5 z-20 pointer-events-none">
+          <span class="px-1.5 py-0.2 rounded bg-slate-950/90 border border-cyan-500/40 text-[7.5px] font-mono text-cyan-300 shadow backdrop-blur-xs">
+            OSM DARK RADAR
           </span>
         </div>
 
-        <div v-if="selectedSession" class="absolute bottom-2 left-2 z-20 pointer-events-none px-2 py-0.5 rounded-lg bg-black/85 border border-[#854d0e]/70 text-[8px] font-mono text-stone-300">
-          Lat: {{ selectedSession.latitude.toFixed(4) }}° | Lng: {{ selectedSession.longitude.toFixed(4) }}°
+        <div v-if="selectedSession" class="absolute bottom-1.5 left-1.5 z-20 pointer-events-none px-1.5 py-0.2 rounded bg-slate-950/90 border border-cyan-500/40 text-[7.5px] font-mono text-cyan-200">
+          Lat: {{ selectedSession.latitude.toFixed(3) }}° | Lng: {{ selectedSession.longitude.toFixed(3) }}°
         </div>
       </div>
 
@@ -273,12 +276,13 @@ onUnmounted(() => {
   border: none !important;
 }
 .leaflet-popup-content-wrapper, .leaflet-popup-tip {
-  background: #18120b !important;
-  color: #fef3c7 !important;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.9) !important;
-  border: 1.5px solid #854d0e !important;
+  background: #090d16 !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.9) !important;
+  border: 1px solid rgba(6, 182, 212, 0.4) !important;
+  font-family: 'JetBrains Mono', monospace !important;
 }
-.dark-tactical-tiles {
-  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7) !important;
+.clean-dark-tactical-tiles {
+  filter: brightness(0.65) invert(1) contrast(1.15) hue-rotate(185deg) saturate(0.35) !important;
 }
 </style>

@@ -13,7 +13,7 @@ const props = withDefaults(defineProps<{
 
 <template>
   <div 
-    class="w-full rounded-xl p-3 border transition-all duration-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md"
+    class="w-full rounded-xl p-1.5 sm:p-2 border transition-all duration-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-md shrink-0"
     :class="[
       theme === 'white-lab' ? {
         'bg-emerald-50/90 border-emerald-300 text-emerald-950': riskStatus === 'OPTIMAL',
@@ -30,9 +30,9 @@ const props = withDefaults(defineProps<{
       }
     ]"
   >
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-2 sm:gap-2.5">
       <div 
-        class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0 shadow"
+        class="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 shadow"
         :class="{
           'bg-emerald-500/20 text-emerald-500': riskStatus === 'OPTIMAL',
           'bg-amber-500/30 text-amber-500': riskStatus === 'WARNING_PREDICTIVE',
@@ -41,19 +41,19 @@ const props = withDefaults(defineProps<{
           'bg-slate-700 text-slate-400': riskStatus === 'SLEEPING'
         }"
       >
-        <ShieldCheck v-if="riskStatus === 'OPTIMAL'" class="w-4 h-4" />
-        <AlertTriangle v-else-if="riskStatus === 'WARNING_PREDICTIVE'" class="w-4 h-4" />
-        <AlertOctagon v-else-if="riskStatus === 'CRITICAL'" class="w-4 h-4" />
-        <Activity v-else class="w-4 h-4" />
+        <ShieldCheck v-if="riskStatus === 'OPTIMAL'" class="w-3.5 h-3.5" />
+        <AlertTriangle v-else-if="riskStatus === 'WARNING_PREDICTIVE'" class="w-3.5 h-3.5" />
+        <AlertOctagon v-else-if="riskStatus === 'CRITICAL'" class="w-3.5 h-3.5" />
+        <Activity v-else class="w-3.5 h-3.5" />
       </div>
 
       <div>
         <div class="flex items-center gap-2">
-          <span class="text-[11px] font-journal uppercase tracking-wider font-extrabold">
+          <span class="text-[10px] sm:text-[10.5px] font-mono uppercase tracking-wider font-extrabold">
             {{ riskStatus === 'WARNING_PREDICTIVE' ? 'Alerta: Aire Cambiando' : riskStatus === 'CRITICAL' ? '¡Peligro! Aire Contaminado' : 'Aire Limpio y Seguro' }}
           </span>
         </div>
-        <p class="text-[11px] font-journal mt-0.5" :class="theme === 'white-lab' ? 'text-slate-700' : 'text-slate-300'">
+        <p class="text-[9.5px] sm:text-[10px] font-mono leading-tight mt-0.5" :class="theme === 'white-lab' ? 'text-slate-700' : 'text-slate-300'">
           <span v-if="riskStatus === 'WARNING_PREDICTIVE'">
             Tendencia al alza (+{{ deltaPpm1m.toFixed(1) }} PPM/min). Pronóstico en 15 min: <strong class="font-mono font-bold">{{ predictedPpm15m }} PPM</strong>. <em>Ventilar el área.</em>
           </span>
@@ -68,10 +68,10 @@ const props = withDefaults(defineProps<{
     </div>
 
     <div 
-      class="flex items-center gap-2 self-end sm:self-center font-mono text-[11px] px-2.5 py-1 rounded-lg border"
+      class="flex items-center gap-1.5 self-end sm:self-center font-mono text-[10px] px-2 py-0.5 rounded-lg border shrink-0"
       :class="theme === 'white-lab' ? 'bg-white border-slate-300 text-slate-900 shadow-sm' : 'bg-black/50 border-slate-700 text-slate-100'"
     >
-      <span class="text-[10px] font-journal" :class="theme === 'white-lab' ? 'text-slate-500' : 'text-slate-400'">Pronóstico:</span>
+      <span class="text-[9.5px] font-mono" :class="theme === 'white-lab' ? 'text-slate-500' : 'text-slate-400'">Pronóstico:</span>
       <span class="font-bold">{{ predictedPpm15m }} PPM</span>
     </div>
   </div>

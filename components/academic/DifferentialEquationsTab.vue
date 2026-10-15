@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { BookOpen, Compass, Sparkles, MessageSquareQuote, Flame, Wind, Atom } from 'lucide-vue-next'
+import { Compass, Sparkles, MessageSquareQuote, Flame, Wind } from 'lucide-vue-next'
 import LabScrew from '~/components/madlab/LabScrew.vue'
 import AnalogSlider from '~/components/madlab/AnalogSlider.vue'
+import EquationDeductionBoard from './EquationDeductionBoard.vue'
+import EquationVariablesLegend from './EquationVariablesLegend.vue'
 
 const props = defineProps<{
   c0: number
@@ -30,7 +32,7 @@ const academicFeed = computed(() => {
       icon: Flame,
       color: 'border-amber-500/70 bg-gradient-to-b from-[#241407] to-[#120a04]',
       badgeColor: 'text-amber-400 border-amber-500/60 bg-amber-950/60',
-      insight: `Ojo aquí: el cuarto está cerrado y la generación supera con creces la ventilación (G > Q·C). La concentración va a trepar desde la base medida buscando saturar en ${props.cInf} de nivel asintótico. Si nadie abre las ventanas, en unos ${time95Equilibrium.value} minutos ya alcanzamos el 95% de saturación con aire pesado.`,
+      insight: `Ojo aquí: el recinto está cerrado y la generación supera la ventilación (G > Q·C). La concentración trepa desde ${props.c0} PPM buscando saturar en ${props.cInf} PPM. Si nadie abre las ventanas, en unos ${time95Equilibrium.value} minutos ya alcanzamos el 95% de saturación.`,
       tipProfe: `Para defenderlo en clase: "Profe, la constante k = Q/V (${props.k} min⁻¹) modela la resistencia física al recambio. Si k es baja, el aire no circula y el tiempo característico τ se nos dispara a ${tauMin.value} minutos."`
     }
   }
@@ -39,7 +41,7 @@ const academicFeed = computed(() => {
     icon: Wind,
     color: 'border-emerald-500/70 bg-gradient-to-b from-[#072413] to-[#04120a]',
     badgeColor: 'text-emerald-400 border-emerald-500/60 bg-emerald-950/60',
-      insight: `Ventilación activa a tope (Q·C > G). El caudal fresco barre los contaminantes desde la concentración base hasta igualar el nivel exterior de ${props.cInf}. Con una constante τ = ${tauMin.value} minutos, la caída es rápida y limpia.`,
+    insight: `Ventilación activa a tope (Q·C > G). El caudal fresco barre los contaminantes desde ${props.c0} PPM hasta igualar el nivel exterior de ${props.cInf} PPM. Con una constante τ = ${tauMin.value} minutos, la caída es rápida y limpia.`,
     tipProfe: `Para defenderlo en clase: "La solución analítica describe un decaimiento exponencial puro. Es exactamente la misma curva que traza el sensor MQ-135 al entrar en fase RECOVERY cuando se ventila el aula."`
   }
 })
@@ -47,61 +49,19 @@ const academicFeed = computed(() => {
 
 <template>
   <div class="space-y-3.5 text-slate-100 font-sans select-none text-xs">
-    <!-- Pizarra de Deducción Matemática (Placa de Bronce Grabada con Remaches) -->
-    <div class="relative rounded-2xl p-4 bg-gradient-to-b from-[#24180d] via-[#140d07] to-[#0a0603] border-2 border-[#854d0e] shadow-[inset_0_1px_3px_rgba(251,191,36,0.3),0_8px_24px_rgba(0,0,0,0.8)] space-y-3">
-      <LabScrew class="absolute top-2 left-2" :rotation="35" />
-      <LabScrew class="absolute top-2 right-2" :rotation="-45" />
-      <LabScrew class="absolute bottom-2 left-2" :rotation="80" />
-      <LabScrew class="absolute bottom-2 right-2" :rotation="-20" />
+    <!-- Pizarra de Deducción Matemática Interactiva (Separación de Variables Paso a Paso) -->
+    <EquationDeductionBoard
+      :c0="c0"
+      :c-inf="cInf"
+      :k="k"
+    />
 
-      <div class="flex items-center justify-between border-b border-[#854d0e]/50 pb-2 px-3">
-        <div class="flex items-center gap-2">
-          <BookOpen class="w-4 h-4 text-[#fbbf24]" />
-          <h3 class="font-journal font-bold text-sm text-[#fbbf24] tracking-wide">
-            1. Deducción del Modelo Físico (Balance de Masa en Recintos)
-          </h3>
-        </div>
-        <span class="px-2.5 py-0.5 rounded-full bg-black/80 border border-amber-600/60 text-amber-300 font-mono text-[9.5px] font-bold shadow-[0_0_8px_rgba(245,158,11,0.2)]">
-          EDO Lineal de 1er Orden
-        </span>
-      </div>
-
-      <!-- Placas Metálicas Grabadas para las Fórmulas -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5 font-mono text-center pt-1 px-1">
-        <div class="p-2.5 rounded-xl bg-gradient-to-b from-[#181109] to-[#080503] border-2 border-[#854d0e]/70 shadow-inner relative">
-          <div class="text-[9.5px] font-journal font-bold text-amber-300 mb-1 flex items-center justify-center gap-1">
-            <Atom class="w-3 h-3 text-amber-400" />
-            <span>Balance Físico Diferencial</span>
-          </div>
-          <div class="text-xs font-bold text-white bg-black/80 py-1.5 px-2 rounded-lg border border-amber-900/40 shadow tracking-wide">
-            V · dC/dt = G - Q · C(t)
-          </div>
-          <div class="text-[8px] text-stone-400 mt-1 font-journal">Acumulación = Generación - Ventilación</div>
-        </div>
-
-        <div class="p-2.5 rounded-xl bg-gradient-to-b from-[#181109] to-[#080503] border-2 border-[#854d0e]/70 shadow-inner relative">
-          <div class="text-[9.5px] font-journal font-bold text-amber-300 mb-1 flex items-center justify-center gap-1">
-            <Atom class="w-3 h-3 text-amber-400" />
-            <span>Factor Integrante μ(t)</span>
-          </div>
-          <div class="text-xs font-bold text-amber-200 bg-black/80 py-1.5 px-2 rounded-lg border border-amber-900/40 shadow tracking-wide">
-            μ(t) = e^(∫ k dt) = e^(kt)
-          </div>
-          <div class="text-[8px] text-stone-400 mt-1 font-journal">Tasa de recambio k = Q/V (min⁻¹)</div>
-        </div>
-
-        <div class="p-2.5 rounded-xl bg-gradient-to-b from-[#181109] to-[#080503] border-2 border-[#854d0e]/70 shadow-inner relative">
-          <div class="text-[9.5px] font-journal font-bold text-emerald-300 mb-1 flex items-center justify-center gap-1">
-            <Atom class="w-3 h-3 text-emerald-400" />
-            <span>Solución Analítica Exacta</span>
-          </div>
-          <div class="text-xs font-bold text-emerald-400 bg-black/80 py-1.5 px-2 rounded-lg border border-emerald-950 shadow tracking-wide">
-            C(t) = C_inf + (C0 - C_inf)e^(-kt)
-          </div>
-          <div class="text-[8px] text-stone-400 mt-1 font-journal">Trayectoria continua exacta en PPM</div>
-        </div>
-      </div>
-    </div>
+    <!-- Leyenda y Desglose Interactivo de Variables (Hardware vs Matemáticas) -->
+    <EquationVariablesLegend
+      :c0="c0"
+      :c-inf="cInf"
+      :k="k"
+    />
 
     <!-- Controles Analógicos de Laboratorio (Potenciómetros Lineales Táctiles de Cobre) -->
     <div class="relative rounded-2xl p-4 bg-gradient-to-b from-[#1c150c] to-[#0b0805] border-2 border-[#854d0e]/80 space-y-3 shadow-md">
@@ -111,11 +71,11 @@ const academicFeed = computed(() => {
       <div class="flex items-center justify-between border-b border-[#854d0e]/40 pb-1.5 px-2">
         <div class="flex items-center gap-2">
           <Compass class="w-4 h-4 text-emerald-400" />
-          <h4 class="font-journal font-bold text-[#fbbf24] text-xs tracking-wide">
+          <h4 class="font-mono font-bold text-[#fbbf24] text-xs tracking-wide">
             Calibración Analógica del Recinto Sensorizado
           </h4>
         </div>
-        <span class="text-[8.5px] font-mono text-stone-400">Pares MQ-135 + DHT11</span>
+        <span class="text-[8.5px] font-mono text-stone-400">Pares MQ-135 + ESP32</span>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -136,7 +96,7 @@ const academicFeed = computed(() => {
           :min="400"
           :max="2500"
           :step="20"
-          label="C_inf (Equilibrio Saturación)"
+          label="C_ext (Equilibrio Saturación)"
           sublabel="Límite Asintótico"
           unit="PPM"
           color="rose"
@@ -157,7 +117,7 @@ const academicFeed = computed(() => {
       </div>
     </div>
 
-    <!-- FEED INTERACTIVO DE AULA: BITÁCORA DEL ALQUIMISTA -->
+    <!-- Feed Interactivo de Aula: Bitácora del Alquimista -->
     <div
       class="rounded-2xl p-3.5 border-2 space-y-2 shadow-lg transition-colors duration-300 relative"
       :class="academicFeed.color"
@@ -165,7 +125,7 @@ const academicFeed = computed(() => {
       <LabScrew class="absolute bottom-2 right-2" :rotation="48" />
 
       <div class="flex items-center justify-between border-b border-white/10 pb-1">
-        <div class="flex items-center gap-1.5 font-journal font-bold text-xs text-[#fbbf24] tracking-wider">
+        <div class="flex items-center gap-1.5 font-mono font-bold text-xs text-[#fbbf24] tracking-wider">
           <Sparkles class="w-3.5 h-3.5 text-amber-400" />
           <span>Bitácora del Alquimista (Explicación para Clase)</span>
         </div>
@@ -175,14 +135,14 @@ const academicFeed = computed(() => {
         </div>
       </div>
 
-      <p class="font-journal text-stone-200 text-[11px] leading-relaxed">
+      <p class="font-mono text-stone-200 text-[11px] leading-relaxed">
         {{ academicFeed.insight }}
       </p>
 
       <div class="p-2.5 rounded-xl bg-black/70 border border-amber-700/40 flex items-start gap-2 font-mono text-[9.5px] text-amber-200">
         <MessageSquareQuote class="w-4 h-4 text-[#fbbf24] shrink-0 mt-0.5" />
         <div>
-          <strong class="text-[#fbbf24] block font-journal text-[10px]">Guía de Sustentación para Juankio:</strong>
+          <strong class="text-[#fbbf24] block font-mono text-[10px]">Guía de Sustentación para Juankio:</strong>
           {{ academicFeed.tipProfe }}
         </div>
       </div>
