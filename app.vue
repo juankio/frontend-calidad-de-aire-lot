@@ -37,7 +37,8 @@ const {
   wsConnected, usbConnected, operationMode, hardwareStatus, effectiveRiskStatus,
   lastPacketAgeSec, isModalOpen, viewMode,
   setOperationMode, toggleViewMode, selectSession, fetchSessions,
-  deleteSession, setManualGyro, calibrateGyroZero, triggerGyroShake
+  deleteSession, setManualGyro, calibrateGyroZero,
+  triggerGyroShake, triggerBabyRocking, triggerCustomEmotion
 } = useAirGuardian()
 
 function openEditModal(session: SessionData) {
@@ -110,6 +111,8 @@ async function handleDeleteSession(session: SessionData & { session_id?: string 
             :last-packet-age-sec="lastPacketAgeSec"
             @toggle-screen-mode="toggleViewMode"
             @shake-device="triggerGyroShake"
+            @rock-baby="triggerBabyRocking"
+            @select-emotion="triggerCustomEmotion"
             @open-3d-modal="isDigitalTwinModalOpen = true"
             @switch-to-local="setOperationMode('LOCAL')"
           />

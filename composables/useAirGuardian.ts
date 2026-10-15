@@ -1,4 +1,5 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { normalizeGc9a01Emotion, type Gc9a01Emotion } from '~/utils/gc9a01Renderer'
 
 export type RiskEmotionStatus =
   | 'OPTIMAL'
@@ -35,7 +36,7 @@ export interface TelemetryState {
   free_heap?: number
   uptime_s?: number
   offline_pending?: number
-  device_emotion: RiskEmotionStatus
+  device_emotion: Gc9a01Emotion | string
   view_mode: 'FACE' | 'HUD'
 }
 
@@ -258,33 +259,54 @@ let shakeTimer: ReturnType<typeof setInterval> | null = null
 let usbIngestDebounceTimer: ReturnType<typeof setTimeout> | null = null
 let lastUsbIngestSentAt = 0
 let activeConsumers = 0
+const shakeComboCount = ref(0)
+let lastManualShakeAt = 0
+let lastManualDragDir = 0
+let manualRapidWhipCount = 0
+let lastManualDragFlipAt = 0
 
-function parseRiskEmotion(raw: string): TelemetryState['device_emotion'] {
-  const normalized = raw.toUpperCase().trim()
-  if (normalized === 'DIZZY' || normalized === 'EMOTION_DIZZY') return 'DIZZY'
-  if (
-    normalized === 'WARNING_PREDICTIVE' ||
-    normalized === 'PREDICTIVE_WARNING' ||
-    normalized === 'EMOTION_PREDICTIVE_WARNING' ||
-    normalized === 'WARNING' ||
-    normalized === 'ALERT'
-  ) {
-    return 'WARNING_PREDICTIVE'
-  }
-  if (
-    normalized === 'CRITICAL' ||
-    normalized === 'EMOTION_CRITICAL' ||
-    normalized === 'DANGER' ||
-    normalized === 'ERROR'
-  ) {
-    return 'CRITICAL'
-  }
-  if (normalized === 'RECOVERY' || normalized === 'EMOTION_RECOVERY' || normalized === 'RECOVERING') {
-    return 'RECOVERY'
-  }
-  if (normalized === 'SLEEPING' || normalized === 'EMOTION_SLEEPING' || normalized === 'SLEEP') {
-    return 'SLEEPING'
-  }
+const LOCAL_IDLE_CAROUSEL: ReadonlyArray<Gc9a01Emotion> = [
+  'OPTIMAL',
+  'BUBBLEGUM',
+  'GLASSES_COOL',
+  'RAMEN',
+  'COFFEE',
+  'MUSIC_VIBE',
+  'BUTTERFLY',
+  'WINK',
+  'LOVE',
+  'DERP',
+  'BABY_SLEEP',
+  'DETECTIVE',
+  'WHISTLE',
+  'ZEN',
+  'LAUGHING'
+]
+
+export function parseRiskEmotion(raw: string): Gc9a01Emotion {
+  const cleaned = String(raw || 'OPTIMAL')
+    .toUpperCase()
+    .trim()
+    .replace(/^EMOTION_/, '')
+  if (cleaned === 'TILT_LEFT') return 'WALL_LEFT'
+  if (cleaned === 'TILT_RIGHT') return 'WALL_RIGHT'
+  if (cleaned === 'WHISTLING') return 'WHISTLE'
+  if (cleaned === 'SNEEZING') return 'SNEEZE'
+  if (cleaned === 'YAWNING') return 'YAWN'
+  if (cleaned === 'RECOVERING') return 'RECOVERY'
+  if (cleaned === 'SLEEP') return 'SLEEPING'
+  if (cleaned === 'ALERT') return 'WARNING_PREDICTIVE'
+  if (cleaned === 'ERROR') return 'CRITICAL'
+  return normalizeGc9a01Emotion(cleaned, false)
+}
+
+function parseBaseRiskStatus(raw: string): RiskEmotionStatus {
+  const emo = parseRiskEmotion(raw)
+  if (emo === 'CRITICAL' || emo === 'GAS_MASK') return 'CRITICAL'
+  if (emo === 'WARNING_PREDICTIVE') return 'WARNING_PREDICTIVE'
+  if (emo === 'RECOVERY') return 'RECOVERY'
+  if (emo === 'SLEEPING') return 'SLEEPING'
+  if (emo === 'DIZZY' || emo === 'NAUSEA' || emo === 'VOMIT') return 'DIZZY'
   return 'OPTIMAL'
 }
 
@@ -317,7 +339,14 @@ export function useAirGuardian() {
   })
 
   const effectiveRiskStatus = computed<TelemetryState['risk_status']>(() => {
-    if (telemetry.value.is_shaking || telemetry.value.device_emotion === 'DIZZY') return 'DIZZY'
+    if (
+      telemetry.value.is_shaking ||
+      telemetry.value.device_emotion === 'DIZZY' ||
+      telemetry.value.device_emotion === 'NAUSEA' ||
+      telemetry.value.device_emotion === 'VOMIT'
+    ) {
+      return 'DIZZY'
+    }
     if (
       operationMode.value === 'LIVE' &&
       hardwareStatus.value === 'OFFLINE' &&
@@ -402,7 +431,7 @@ export function useAirGuardian() {
       sample.emotion ||
       s?.device_emotion ||
       s?.emotion
-    if (incomingRisk) telemetry.value.risk_status = parseRiskEmotion(String(incomingRisk))
+    if (incomingRisk) telemetry.value.risk_status = parseBaseRiskStatus(String(incomingRisk))
     if (sample.session_id !== undefined) telemetry.value.session_id = sample.session_id
     if (sample.timestamp) telemetry.value.timestamp = Number(sample.timestamp)
     if (sample.device_id) telemetry.value.device_id = sample.device_id
@@ -506,19 +535,31 @@ export function useAirGuardian() {
       s?.risk_status ||
       'OPTIMAL'
     ).toUpperCase()
+    const parsedEmotion = parseRiskEmotion(rawEmotion)
     const shaking =
       Boolean(sample.is_shaking ?? s?.is_shaking) ||
-      rawEmotion === 'DIZZY'
+      parsedEmotion === 'DIZZY' ||
+      parsedEmotion === 'NAUSEA' ||
+      parsedEmotion === 'VOMIT'
 
     if (Date.now() > manualGyroLockUntil) {
       if (hasExplicitEmotionOrShake || hasGyroPayload) {
         telemetry.value.is_shaking = shaking
-        telemetry.value.device_emotion = shaking
-          ? 'DIZZY'
-          : (rawEmotion === 'PREDICTIVE_WARNING' ? 'WARNING_PREDICTIVE' : parseRiskEmotion(rawEmotion))
+        if (parsedEmotion !== 'OPTIMAL') {
+          telemetry.value.device_emotion = parsedEmotion
+        } else if (shaking) {
+          telemetry.value.device_emotion = 'DIZZY'
+        } else if (Math.abs(telemetry.value.roll) > 135) {
+          telemetry.value.device_emotion = 'UPSIDE_DOWN'
+        } else {
+          telemetry.value.device_emotion = 'OPTIMAL'
+        }
       } else if (!telemetry.value.is_shaking) {
-        telemetry.value.device_emotion =
-          rawEmotion === 'PREDICTIVE_WARNING' ? 'WARNING_PREDICTIVE' : parseRiskEmotion(rawEmotion)
+        if (Math.abs(telemetry.value.roll) > 135 && parsedEmotion === 'OPTIMAL') {
+          telemetry.value.device_emotion = 'UPSIDE_DOWN'
+        } else {
+          telemetry.value.device_emotion = parsedEmotion
+        }
       }
     }
 
@@ -640,12 +681,20 @@ export function useAirGuardian() {
     else if (mockDelta > 20 || curPpm > 750) mockRisk = 'WARNING_PREDICTIVE'
     else if (mockDelta < -15) mockRisk = 'RECOVERY'
 
-    const driftEyeX = 0
-    const driftEyeY = 0
+    const nowMs = Date.now()
+    const driftEyeX = Number((Math.sin(nowMs * 0.0012) * 2.2).toFixed(2))
+    const driftEyeY = Number((Math.cos(nowMs * 0.0009) * 1.4).toFixed(2))
+    const carouselIdx = Math.floor(nowMs / 6000) % LOCAL_IDLE_CAROUSEL.length
+    const carouselEmotion: Gc9a01Emotion =
+      mockRisk === 'CRITICAL'
+        ? 'CRITICAL'
+        : mockRisk === 'WARNING_PREDICTIVE'
+          ? 'WARNING_PREDICTIVE'
+          : (LOCAL_IDLE_CAROUSEL[carouselIdx] ?? 'OPTIMAL')
 
     applyLiveTelemetry({
       device_id: 'air-guardian-01',
-      timestamp: Date.now(),
+      timestamp: nowMs,
       ppm: curPpm,
       co_ppm: Math.round((curPpm / 75.0) * 10) / 10,
       temperature: 24.2 + (Math.random() * 0.4 - 0.2),
@@ -662,7 +711,7 @@ export function useAirGuardian() {
       free_heap: 182000 + Math.floor(Math.random() * 4000),
       uptime_s: (telemetry.value.uptime_s || 3600) + 2,
       offline_pending: 0,
-      device_emotion: mockRisk,
+      device_emotion: carouselEmotion,
       view_mode: telemetry.value.view_mode
     })
 
@@ -672,6 +721,7 @@ export function useAirGuardian() {
       telemetry.value.roll = 0
       telemetry.value.pitch = 0
       telemetry.value.is_shaking = false
+      telemetry.value.device_emotion = carouselEmotion
     }
   }
 
@@ -956,6 +1006,19 @@ export function useAirGuardian() {
     }
   }
 
+  function sendRemoteEmotionCommand(emotion: string, viewModeCmd: 'FACE' | 'HUD' = 'FACE') {
+    if (operationMode.value !== 'LIVE') return
+    fetch(`${apiBase}/api/telemetry/command`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        device_id: telemetry.value.device_id || 'air-guardian-01',
+        view_mode: viewModeCmd,
+        emotion
+      })
+    }).catch(() => {})
+  }
+
   function toggleViewMode() {
     const nextMode: 'FACE' | 'HUD' = telemetry.value.view_mode === 'FACE' ? 'HUD' : 'FACE'
     telemetry.value.view_mode = nextMode
@@ -972,9 +1035,27 @@ export function useAirGuardian() {
   }
 
   function setManualGyro(eyeX: number, eyeY: number, shaking = false, durationMs = 4500) {
-    manualGyroLockUntil = Date.now() + durationMs
+    const now = Date.now()
+    manualGyroLockUntil = now + durationMs
     const clampedEyeX = Math.max(-20, Math.min(20, Number(eyeX) || 0))
     const clampedEyeY = Math.max(-10, Math.min(10, Number(eyeY) || 0))
+
+    const currentDir = Math.abs(clampedEyeX) > 6 ? Math.sign(clampedEyeX) : 0
+    if (currentDir !== 0 && currentDir !== lastManualDragDir) {
+      if (now - lastManualDragFlipAt < 450) {
+        manualRapidWhipCount++
+      } else {
+        manualRapidWhipCount = 1
+      }
+      lastManualDragDir = currentDir
+      lastManualDragFlipAt = now
+      if (manualRapidWhipCount >= 4) {
+        manualRapidWhipCount = 0
+        triggerGyroShake()
+        return
+      }
+    }
+
     let computedRoll = clampedEyeX * 9.0
     while (computedRoll > 180) computedRoll -= 360
     while (computedRoll < -180) computedRoll += 360
@@ -986,19 +1067,37 @@ export function useAirGuardian() {
     telemetry.value.is_shaking = shaking
     if (shaking) {
       telemetry.value.device_emotion = 'DIZZY'
-    } else if (telemetry.value.device_emotion === 'DIZZY') {
+    } else if (Math.abs(computedRoll) > 135) {
+      telemetry.value.device_emotion = 'UPSIDE_DOWN'
+    } else if (computedRoll < -55) {
+      telemetry.value.device_emotion = 'WALL_LEFT'
+    } else if (computedRoll > 55) {
+      telemetry.value.device_emotion = 'WALL_RIGHT'
+    } else if (
+      telemetry.value.device_emotion === 'DIZZY' ||
+      telemetry.value.device_emotion === 'UPSIDE_DOWN' ||
+      telemetry.value.device_emotion === 'WALL_LEFT' ||
+      telemetry.value.device_emotion === 'WALL_RIGHT'
+    ) {
       telemetry.value.device_emotion = telemetry.value.risk_status === 'DIZZY' ? 'OPTIMAL' : telemetry.value.risk_status
     }
   }
 
   function calibrateGyroZero() {
+    if (shakeTimer) {
+      clearInterval(shakeTimer)
+      shakeTimer = null
+    }
     gyroTareOffset.value = { x: lastRawEyeX, y: lastRawEyeY }
     manualGyroLockUntil = 0
+    shakeComboCount.value = 0
     telemetry.value.eye_x = 0
     telemetry.value.eye_y = 0
     telemetry.value.roll = 0
     telemetry.value.pitch = 0
     telemetry.value.is_shaking = false
+    telemetry.value.device_emotion =
+      telemetry.value.risk_status === 'DIZZY' ? 'OPTIMAL' : telemetry.value.risk_status
   }
 
   function triggerGyroShake() {
@@ -1006,14 +1105,174 @@ export function useAirGuardian() {
       clearInterval(shakeTimer)
       shakeTimer = null
     }
-    const durationMs = 2600
+
+    const startMs = Date.now()
+    const elapsedSinceLast = startMs - lastManualShakeAt
+
+    if (shakeComboCount.value === 1 && elapsedSinceLast <= 4000) {
+      shakeComboCount.value = 2
+    } else if (shakeComboCount.value >= 2 && elapsedSinceLast <= 5000) {
+      shakeComboCount.value += 1
+    } else {
+      shakeComboCount.value = 1
+    }
+    lastManualShakeAt = startMs
+
+    const stage = shakeComboCount.value
+    const durationMs = stage >= 3 ? 7200 : 3500
+    manualGyroLockUntil = startMs + durationMs
+
+    const initialStageEmotion = stage === 1 ? 'DIZZY' : stage === 2 ? 'NAUSEA' : 'VOMIT'
+    telemetry.value.view_mode = 'FACE'
+    telemetry.value.is_shaking = true
+    telemetry.value.device_emotion = initialStageEmotion
+    sendRemoteEmotionCommand(initialStageEmotion, 'FACE')
+
+    let wiperCommandSent = false
+    let tick = 0
+    shakeTimer = setInterval(() => {
+      tick++
+      const elapsed = Date.now() - startMs
+
+      if (elapsed >= durationMs) {
+        if (shakeTimer) {
+          clearInterval(shakeTimer)
+          shakeTimer = null
+        }
+        if (stage >= 3) {
+          shakeComboCount.value = 0
+        }
+        telemetry.value.eye_x = 0
+        telemetry.value.eye_y = 0
+        telemetry.value.roll = 0
+        telemetry.value.pitch = 0
+        telemetry.value.is_shaking = false
+        telemetry.value.device_emotion =
+          stage >= 3
+            ? 'RECOVERY'
+            : (telemetry.value.risk_status === 'DIZZY' ? 'OPTIMAL' : telemetry.value.risk_status)
+        return
+      }
+
+      if (stage >= 3 && elapsed >= 3800) {
+        if (!wiperCommandSent) {
+          wiperCommandSent = true
+          sendRemoteEmotionCommand('WIPER', 'FACE')
+        }
+        const wiperElapsed = elapsed - 3800
+        const sweep = Math.sin(wiperElapsed * 0.0065) * 4.5
+        telemetry.value.device_emotion = 'WIPER'
+        telemetry.value.is_shaking = false
+        telemetry.value.eye_x = Number(sweep.toFixed(2))
+        telemetry.value.eye_y = 0
+        telemetry.value.roll = 0
+        telemetry.value.pitch = 0
+        return
+      }
+
+      const activeDur = stage >= 3 ? 3800 : durationMs
+      const decay = Math.max(0.2, 1 - elapsed / activeDur)
+      const amp = stage >= 3 ? 8.5 : stage === 2 ? 7.8 : 7.2
+      const sx = Math.sin(tick * 1.9) * amp * decay
+      const sy = Math.cos(tick * 2.3) * (amp * 0.88) * decay
+      telemetry.value.eye_x = Number(sx.toFixed(2))
+      telemetry.value.eye_y = Number(sy.toFixed(2))
+      telemetry.value.roll = Number(Math.max(-35, Math.min(35, sx * 3.5)).toFixed(1))
+      telemetry.value.pitch = Number(Math.max(-30, Math.min(30, -sy * 3.5)).toFixed(1))
+      telemetry.value.is_shaking = true
+      telemetry.value.device_emotion = stage === 1 ? 'DIZZY' : stage === 2 ? 'NAUSEA' : 'VOMIT'
+    }, 60)
+  }
+
+  function triggerBabyRocking() {
+    if (shakeTimer) {
+      clearInterval(shakeTimer)
+      shakeTimer = null
+    }
+    const durationMs = 9000
     const startMs = Date.now()
     manualGyroLockUntil = startMs + durationMs
 
-    const nextMode: 'FACE' | 'HUD' = telemetry.value.view_mode === 'FACE' ? 'HUD' : 'FACE'
-    telemetry.value.view_mode = nextMode
-    telemetry.value.is_shaking = true
-    telemetry.value.device_emotion = 'DIZZY'
+    telemetry.value.view_mode = 'FACE'
+    telemetry.value.is_shaking = false
+    telemetry.value.device_emotion = 'BABY_ROCKING'
+    sendRemoteEmotionCommand('BABY_ROCKING', 'FACE')
+
+    let sleepCommandSent = false
+    shakeTimer = setInterval(() => {
+      const elapsed = Date.now() - startMs
+      if (elapsed >= durationMs) {
+        if (shakeTimer) {
+          clearInterval(shakeTimer)
+          shakeTimer = null
+        }
+        telemetry.value.eye_x = 0
+        telemetry.value.eye_y = 0
+        telemetry.value.roll = 0
+        telemetry.value.pitch = 0
+        telemetry.value.is_shaking = false
+        telemetry.value.device_emotion =
+          telemetry.value.risk_status === 'DIZZY' ? 'OPTIMAL' : telemetry.value.risk_status
+        return
+      }
+
+      if (elapsed < 3500) {
+        const rollOsc = Math.sin(elapsed * 0.0055) * 18
+        telemetry.value.device_emotion = 'BABY_ROCKING'
+        telemetry.value.is_shaking = false
+        telemetry.value.roll = Number(rollOsc.toFixed(1))
+        telemetry.value.pitch = Number((Math.cos(elapsed * 0.0028) * 2.5).toFixed(1))
+        telemetry.value.eye_x = Number((rollOsc / 9.0).toFixed(2))
+        telemetry.value.eye_y = 0
+      } else {
+        if (!sleepCommandSent) {
+          sleepCommandSent = true
+          sendRemoteEmotionCommand('BABY_SLEEP', 'FACE')
+        }
+        telemetry.value.device_emotion = 'BABY_SLEEP'
+        telemetry.value.is_shaking = false
+        telemetry.value.roll = 0
+        telemetry.value.pitch = 0
+        telemetry.value.eye_x = 0
+        telemetry.value.eye_y = 0
+      }
+    }, 60)
+  }
+
+  function triggerCustomEmotion(emotion: string, durationMs = 5000) {
+    if (shakeTimer) {
+      clearInterval(shakeTimer)
+      shakeTimer = null
+    }
+    const targetEmotion = parseRiskEmotion(emotion)
+    const startMs = Date.now()
+    manualGyroLockUntil = startMs + durationMs
+
+    const shouldShake =
+      targetEmotion === 'DIZZY' ||
+      targetEmotion === 'NAUSEA' ||
+      targetEmotion === 'VOMIT'
+
+    telemetry.value.view_mode = 'FACE'
+    telemetry.value.is_shaking = shouldShake
+    telemetry.value.device_emotion = targetEmotion
+    sendRemoteEmotionCommand(targetEmotion, 'FACE')
+
+    if (targetEmotion === 'UPSIDE_DOWN') {
+      telemetry.value.roll = 180
+      telemetry.value.pitch = 0
+    } else if (targetEmotion === 'WALL_LEFT') {
+      telemetry.value.roll = -75
+      telemetry.value.pitch = 0
+    } else if (targetEmotion === 'WALL_RIGHT') {
+      telemetry.value.roll = 75
+      telemetry.value.pitch = 0
+    } else if (!shouldShake) {
+      telemetry.value.roll = 0
+      telemetry.value.pitch = 0
+      telemetry.value.eye_x = 0
+      telemetry.value.eye_y = 0
+    }
 
     let tick = 0
     shakeTimer = setInterval(() => {
@@ -1034,15 +1293,20 @@ export function useAirGuardian() {
         return
       }
 
-      const decay = 1 - elapsed / durationMs
-      const sx = Math.sin(tick * 1.9) * 7.2 * decay
-      const sy = Math.cos(tick * 2.3) * 6.4 * decay
-      telemetry.value.eye_x = Number(sx.toFixed(2))
-      telemetry.value.eye_y = Number(sy.toFixed(2))
-      telemetry.value.roll = Number(Math.max(-35, Math.min(35, sx * 3.5)).toFixed(1))
-      telemetry.value.pitch = Number(Math.max(-30, Math.min(30, -sy * 3.5)).toFixed(1))
-      telemetry.value.is_shaking = true
-      telemetry.value.device_emotion = 'DIZZY'
+      telemetry.value.device_emotion = targetEmotion
+      telemetry.value.is_shaking = shouldShake
+      if (shouldShake) {
+        const sx = Math.sin(tick * 1.8) * 5.5
+        const sy = Math.cos(tick * 2.1) * 4.5
+        telemetry.value.eye_x = Number(sx.toFixed(2))
+        telemetry.value.eye_y = Number(sy.toFixed(2))
+        telemetry.value.roll = Number((sx * 2.5).toFixed(1))
+        telemetry.value.pitch = Number((-sy * 2.2).toFixed(1))
+      } else if (targetEmotion === 'BABY_ROCKING') {
+        const rollOsc = Math.sin(elapsed * 0.0055) * 18
+        telemetry.value.roll = Number(rollOsc.toFixed(1))
+        telemetry.value.eye_x = Number((rollOsc / 9.0).toFixed(2))
+      }
     }, 65)
   }
 
@@ -1111,7 +1375,10 @@ export function useAirGuardian() {
     setManualGyro,
     calibrateGyroZero,
     gyroTareOffset,
+    shakeComboCount,
     triggerGyroShake,
+    triggerBabyRocking,
+    triggerCustomEmotion,
     selectSession,
     updateSession,
     deleteSession,

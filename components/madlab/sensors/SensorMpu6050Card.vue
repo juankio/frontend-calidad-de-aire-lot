@@ -3,61 +3,54 @@ import { ref, computed } from 'vue'
 import { Compass, Radio, CheckCircle2, XCircle, AlertTriangle, Vibrate } from 'lucide-vue-next'
 
 const props = defineProps<{
-  mpuConnected?: boolean
-  eyeX?: number
-  eyeY?: number
-  pitch?: number
-  roll?: number
-  isShaking?: boolean
-  deviceEmotion?: string
-  isHardwareOnline?: boolean
+  mpuConnected?: boolean; eyeX?: number; eyeY?: number; pitch?: number; roll?: number
+  isShaking?: boolean; deviceEmotion?: string; isHardwareOnline?: boolean
 }>()
 
 const emit = defineEmits<{
-  (e: 'updateGyro', eyeX: number, eyeY: number): void
-  (e: 'shake'): void
-  (e: 'calibrate'): void
+  (e: 'updateGyro', eyeX: number, eyeY: number): void; (e: 'shake'): void; (e: 'calibrate'): void
 }>()
 
 const isOnline = computed(() => props.isHardwareOnline ?? true)
 const isConnected = computed(() => isOnline.value && (props.mpuConnected ?? true))
 const xVal = computed(() => Number(props.eyeX ?? 0))
 const yVal = computed(() => Number(props.eyeY ?? 0))
-
-const rollVal = computed(() => {
-  if (props.roll !== undefined && props.roll !== 0) return Number(props.roll)
-  return Number((xVal.value * 9.0).toFixed(1))
-})
-
-const pitchVal = computed(() => {
-  if (props.pitch !== undefined && props.pitch !== 0) return Number(props.pitch)
-  return Number((yVal.value * 9.0).toFixed(1))
-})
-
+const rollVal = computed(() => (props.roll !== undefined && props.roll !== 0) ? Number(props.roll) : Number((xVal.value * 9.0).toFixed(1)))
+const pitchVal = computed(() => (props.pitch !== undefined && props.pitch !== 0) ? Number(props.pitch) : Number((yVal.value * 9.0).toFixed(1)))
 const rollDeg = rollVal
 const pitchDeg = pitchVal
 
-const isDizzyOrShaking = computed(() => Boolean(props.isShaking) || props.deviceEmotion === 'DIZZY')
+const isDizzyOrShaking = computed(() =>
+  Boolean(props.isShaking) || ['DIZZY', 'NAUSEA', 'VOMIT', 'WIPER'].includes(String(props.deviceEmotion ?? ''))
+)
+
+const shakeButtonLabel = computed(() => {
+  const emo = String(props.deviceEmotion ?? '')
+  if (emo === 'DIZZY') return 'Sacudir (1/3 Mareo)'
+  if (emo === 'NAUSEA') return 'Sacudir (2/3 Náusea)'
+  if (emo === 'VOMIT' || emo === 'WIPER') return 'Sacudir (3/3 ¡Vómito!)'
+  return 'Sacudir (Mareo→Vómito)'
+})
 
 const orientationStatusLabel = computed(() => {
-  if (isDizzyOrShaking.value) return '¡Sacudida Dinámica!'
-  if (Math.abs(rollVal.value) > 135) return 'De Cabeza (180°)'
+  const emo = String(props.deviceEmotion ?? '')
+  if (emo === 'VOMIT') return '🤮 ¡Vómito en Pantalla!'
+  if (emo === 'WIPER') return '🧽 Limpiaparabrisas...'
+  if (emo === 'NAUSEA') return '🤢 Aguantando Vómito'
+  if (isDizzyOrShaking.value) return '🌀 ¡Sacudida • Mareado!'
+  if (emo === 'BABY_ROCKING') return '🍼 Meciendo Bebé (±18°)'
+  if (emo === 'BABY_SLEEP') return '😪 Dormido (Burbuja Moco)'
+  if (Math.abs(rollVal.value) > 135 || emo === 'UPSIDE_DOWN') return '🙃 De Cabeza (180°)'
   if (Math.abs(rollVal.value) > 45) return `Inclinación Lateral (${Math.round(rollVal.value)}°)`
   return 'Inclinación Estable'
 })
 
 const pupilPos = computed(() => {
-  const clampedRoll = Math.max(-180, Math.min(180, rollVal.value))
-  const clampedPitch = Math.max(-90, Math.min(90, pitchVal.value))
-  const rawPx = (clampedRoll / 180) * 22
-  const rawPy = (clampedPitch / 90) * 22
+  const rawPx = (Math.max(-180, Math.min(180, rollVal.value)) / 180) * 22
+  const rawPy = (Math.max(-90, Math.min(90, pitchVal.value)) / 90) * 22
   const dist = Math.hypot(rawPx, rawPy)
   const scale = dist > 22 ? 22 / dist : 1
-  const px = Number((rawPx * scale).toFixed(1))
-  const py = Number((rawPy * scale).toFixed(1))
-  return {
-    transform: `translate(${px}px, ${py}px)`
-  }
+  return { transform: `translate(${(rawPx * scale).toFixed(1)}px, ${(rawPy * scale).toFixed(1)}px)` }
 })
 
 const radarRef = ref<HTMLElement | null>(null)
@@ -74,11 +67,7 @@ function updateGyroFromEvent(e: PointerEvent) {
 }
 
 function toggleUpsideDownTest() {
-  if (Math.abs(rollVal.value) > 135) {
-    emit('updateGyro', 0, 0)
-  } else {
-    emit('updateGyro', 20, 0)
-  }
+  emit('updateGyro', Math.abs(rollVal.value) > 135 ? 0 : 20, 0)
 }
 
 function onPointerDown(e: PointerEvent) {
@@ -86,12 +75,9 @@ function onPointerDown(e: PointerEvent) {
   ;(e.currentTarget as HTMLElement | null)?.setPointerCapture?.(e.pointerId)
   updateGyroFromEvent(e)
 }
-
 function onPointerMove(e: PointerEvent) {
-  if (!isDragging.value) return
-  updateGyroFromEvent(e)
+  if (isDragging.value) updateGyroFromEvent(e)
 }
-
 function onPointerUp() {
   isDragging.value = false
 }
@@ -195,10 +181,11 @@ function onPointerUp() {
           <button
             type="button"
             @click="emit('shake')"
-            class="w-full py-1 px-1 rounded-lg bg-fuchsia-950/60 hover:bg-fuchsia-900/70 border border-fuchsia-500/40 text-fuchsia-300 text-[7.5px] font-mono font-bold flex items-center justify-center gap-0.5 transition cursor-pointer active:scale-95"
+            class="w-full py-1 px-1 rounded-lg bg-fuchsia-950/60 hover:bg-fuchsia-900/70 border border-fuchsia-500/40 text-fuchsia-300 text-[7px] font-mono font-bold flex items-center justify-center gap-0.5 transition cursor-pointer active:scale-95"
+            title="Sacudir repetidamente: 1x Mareo -> 2x Náusea -> 3x Vómito + Limpiaparabrisas"
           >
             <Vibrate class="w-2.5 h-2.5 shrink-0" />
-            <span>Sacudir</span>
+            <span class="truncate">{{ shakeButtonLabel }}</span>
           </button>
         </div>
       </div>
