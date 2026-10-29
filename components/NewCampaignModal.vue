@@ -1,13 +1,34 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { MapPin, X, Navigation, Check } from 'lucide-vue-next'
+import AddressSearchField from './madlab/AddressSearchField.vue'
+
+declare function resolveApiConfig(): { apiBase: string; wsBase: string }
 
 const props = defineProps<{ isOpen: boolean }>()
 const emit = defineEmits<{ (e: 'close'): void; (e: 'created'): void }>()
-const config = useRuntimeConfig()
-const apiBase = ((config.public.apiBase as string) || 'https://servidor-taller.tailf19567.ts.net:10000').replace(/\/+$/, '')
+
+const apiBase = (() => {
+  const fallback = 'http://localhost:3002'
+  try {
+    if (typeof resolveApiConfig === 'function') {
+      return resolveApiConfig().apiBase.replace(/\/+$/, '') || fallback
+    }
+  } catch { }
+  try {
+    const config = useRuntimeConfig()
+    return String(config.public?.apiBase || fallback).replace(/\/+$/, '') || fallback
+  } catch {
+    return fallback
+  }
+})()
 
 const name = ref(''), description = ref(''), latitude = ref(4.1420), longitude = ref(-73.6266), isSubmitting = ref(false)
+
+function onAddressFound(payload: { latitude: number; longitude: number; displayName: string }) {
+  latitude.value = payload.latitude
+  longitude.value = payload.longitude
+}
 
 function obtainCurrentGps() {
   if (navigator.geolocation) {
@@ -68,6 +89,8 @@ async function submitForm() {
       </div>
 
       <form @submit.prevent="submitForm" class="space-y-3 font-mono px-0.5">
+        <AddressSearchField @found="onAddressFound" />
+
         <div>
           <label class="block text-[11px] font-bold text-slate-200 mb-1">Nombre del lugar (mínimo 3 caracteres)</label>
           <input

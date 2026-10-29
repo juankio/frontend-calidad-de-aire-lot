@@ -27,6 +27,7 @@
     "@types/node": "^22.13.4",
     "@types/three": "^0.186.0",
     "animejs": "^3.2.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vue-tsc": "^3.3.13"
   }
 }

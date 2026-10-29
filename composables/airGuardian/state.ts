@@ -38,7 +38,17 @@ export const selectedSessionId = ref<string | null>(null)
 export const activeSessionId = selectedSessionId
 
 export const wsConnected = ref(false)
-export const usbConnected = ref(false)
+export const motionState = ref({
+  ts: 0, pitch: 0, roll: 0, ax: 0, ay: 0, az: 9.8,
+  emotion: 'OPTIMAL', shaking: false, hz: 0, ageMs: 0
+})
+export const localLinkInfo = ref({
+  connected: false, port: null as string | null, baud: 921600,
+  motHz: 0, tlmHz: 0, motFrames: 0, tlmFrames: 0, lastError: null as string | null
+})
+export const usbConnected = computed(() => localLinkInfo.value.connected)
+export const localLinkConnected = computed(() => localLinkInfo.value.connected)
+export const localLinkPort = computed(() => localLinkInfo.value.port)
 export const operationMode = ref<'LOCAL' | 'LIVE'>('LIVE')
 export const isSimulatorRunning = ref(false)
 export const isModalOpen = ref(false)
@@ -91,15 +101,14 @@ export const runtimeState = {
   socket: null as WebSocket | null,
   reconnectTimer: null as ReturnType<typeof setTimeout> | null,
   fallbackPollingTimer: null as ReturnType<typeof setInterval> | null,
+  localLinkTimer: null as ReturnType<typeof setInterval> | null,
   tickTimer: null as ReturnType<typeof setInterval> | null,
   localMockTimer: null as ReturnType<typeof setInterval> | null,
   shakeTimer: null as ReturnType<typeof setInterval> | null,
-  usbIngestDebounceTimer: null as ReturnType<typeof setTimeout> | null,
   lastSeenServerTimestamp: null as number | null,
   manualGyroLockUntil: 0,
   lastRawEyeX: 0,
   lastRawEyeY: 0,
-  lastUsbIngestSentAt: 0,
   activeConsumers: 0,
   lastManualShakeAt: 0,
   lastManualDragDir: 0,
@@ -117,7 +126,9 @@ export const lastPacketAgeSec = computed<number | null>(() => {
 
 export const hardwareStatus = computed<'ONLINE' | 'SIMULATED' | 'OFFLINE'>(() => {
   if (operationMode.value === 'LOCAL') return 'SIMULATED'
-  if (usbConnected.value) return 'ONLINE'
+  if (usbConnected.value === true) {
+    return 'ONLINE'
+  }
   if (
     lastPacketTime.value !== null &&
     lastPacketAgeSec.value !== null &&
@@ -155,7 +166,7 @@ export const currentSession = computed<SessionData | null>(() => {
 })
 
 export function resolveApiConfig(): { apiBase: string; wsBase: string } {
-  const fallbackApi = 'https://servidor-taller.tailf19567.ts.net:10000'
+  const fallbackApi = 'http://localhost:3002'
   try {
     const config = useRuntimeConfig()
     const apiBase = String(config.public?.apiBase || fallbackApi).replace(/\/+$/, '')

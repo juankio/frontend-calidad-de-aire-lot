@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
 import { Terminal, Trash2, Activity } from 'lucide-vue-next'
-import type { SerialLogItem } from '~/composables/useWebSerial'
+import type { SerialLogItem } from '~/utils/webSerialProtocol'
 
 const props = defineProps<{
   logs: SerialLogItem[]

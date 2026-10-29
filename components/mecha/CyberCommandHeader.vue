@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Cpu, Radio, Zap, GraduationCap, Usb, Activity, MapPin, Clock, Box, Database } from 'lucide-vue-next'
-
+import { useAirGuardian } from '~/composables/useAirGuardian'
 const props = defineProps<{
   operationMode: 'LOCAL' | 'LIVE'
   hardwareStatus: 'ONLINE' | 'OFFLINE' | 'SIMULATED'
@@ -9,7 +9,6 @@ const props = defineProps<{
   usbConnected?: boolean
   lastPacketAgeSec?: number | null
 }>()
-
 const emit = defineEmits<{
   (e: 'setOperationMode', mode: 'LOCAL' | 'LIVE'): void
   (e: 'openAcademic'): void
@@ -19,28 +18,44 @@ const emit = defineEmits<{
   (e: 'openDigitalTwin'): void
   (e: 'openDataLake'): void
 }>()
-
+const air = useAirGuardian()
+interface LinkInfo { connected: boolean; port: string | null; baud: number; motHz: number; tlmHz: number; motFrames: number; tlmFrames: number; lastError: string | null }
+const linkInfo = computed<LinkInfo>(() => {
+  const raw = (air as unknown as { localLinkInfo?: { value?: LinkInfo } }).localLinkInfo?.value
+  if (raw) return raw
+  return {
+    connected: air.localLinkConnected.value,
+    port: air.localLinkPort.value,
+    baud: 921600,
+    motHz: 0,
+    tlmHz: 0,
+    motFrames: 0,
+    tlmFrames: 0,
+    lastError: null,
+  }
+})
+const usbConnected = computed(() => props.usbConnected ?? air.usbConnected.value)
 const clockTime = ref('')
 let clockTimer: ReturnType<typeof setInterval> | null = null
-
 function updateClock() {
   const now = new Date()
   clockTime.value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
 }
-
 onMounted(() => { updateClock(); clockTimer = setInterval(updateClock, 1000) })
 onUnmounted(() => { if (clockTimer) clearInterval(clockTimer) })
-
 const statusBadge = computed(() => {
   if (props.operationMode === 'LOCAL') {
     return { label: 'MODO LOCAL • DATOS SINTÉTICOS', dot: 'bg-amber-400 shadow-[0_0_10px_#f59e0b] animate-pulse', border: 'border-amber-500/40 text-amber-300 bg-amber-950/40', short: 'LOCAL' }
   }
-  if (props.usbConnected) {
+  if (usbConnected.value) {
+    const port = linkInfo.value.port || '/dev/ttyUSB0'
+    const baud = linkInfo.value.baud || 921600
+    const hz = linkInfo.value.motHz
     return {
-      label: props.wsConnected ? 'USB ESP32 + WIFI EN LÍNEA' : 'USB ESP32 DIRECTO • TELEMETRÍA OK',
+      label: `CABLE · ${port} · ${baud} · ${hz} Hz`,
       dot: 'bg-cyan-400 shadow-[0_0_10px_#06b6d4] animate-pulse',
       border: 'border-cyan-500/50 text-cyan-200 bg-cyan-950/50',
-      short: 'USB ON'
+      short: 'CABLE ON'
     }
   }
   if (props.hardwareStatus === 'ONLINE') {
@@ -54,7 +69,6 @@ const statusBadge = computed(() => {
   }
 })
 </script>
-
 <template>
   <header class="relative shrink-0 rounded-2xl bg-slate-950/80 backdrop-blur-xl border border-cyan-500/25 p-2 sm:px-3 sm:py-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.8),0_0_20px_rgba(6,182,212,0.08)]">
     <!-- Corchetes Tácticos Angulares en Esquinas -->
@@ -62,7 +76,6 @@ const statusBadge = computed(() => {
     <div class="absolute top-1 right-1 w-2.5 h-2.5 border-t-2 border-r-2 border-cyan-400/60 pointer-events-none rounded-tr-sm" />
     <div class="absolute bottom-1 left-1 w-2.5 h-2.5 border-b-2 border-l-2 border-cyan-400/60 pointer-events-none rounded-bl-sm" />
     <div class="absolute bottom-1 right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-cyan-400/60 pointer-events-none rounded-br-sm" />
-
     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-1.5 sm:gap-2 max-w-full">
       <!-- Marca e Identidad Cyber-Mecha Táctica -->
       <div class="flex items-center justify-between gap-2">
@@ -84,7 +97,6 @@ const statusBadge = computed(() => {
             </div>
           </div>
         </div>
-
         <!-- Reloj Móvil / Badge (<1024px) -->
         <div class="flex lg:hidden items-center gap-1.5 font-mono">
           <div class="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-slate-900/90 border border-cyan-500/30 text-[8px] text-cyan-400 shrink-0">
@@ -96,7 +108,6 @@ const statusBadge = computed(() => {
           </div>
         </div>
       </div>
-
       <!-- Consola de Control de Mando Aeroespacial -->
       <div class="flex flex-wrap items-center justify-between sm:justify-end gap-1 sm:gap-1.5 pt-1 lg:pt-0 border-t border-cyan-500/15 lg:border-t-0 font-mono">
         <!-- Reloj Desktop -->
@@ -105,7 +116,6 @@ const statusBadge = computed(() => {
           <span class="tracking-widest font-bold">{{ clockTime }}</span>
           <span class="text-[7.5px] text-slate-500 ml-0.5">T-SYNC</span>
         </div>
-
         <!-- Selector Dual: Conmutador Aeroespacial -->
         <div class="flex items-center bg-slate-900/90 border border-cyan-500/40 rounded-lg p-0.5 text-[8.5px] sm:text-[9px] shadow-[inset_0_1px_3px_rgba(0,0,0,0.8)] shrink-0">
           <button
@@ -127,13 +137,11 @@ const statusBadge = computed(() => {
             <Radio class="w-2.5 h-2.5" /><span>EN VIVO</span>
           </button>
         </div>
-
         <!-- Badge Desktop -->
         <div class="hidden lg:flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[9px] border transition-all duration-300" :class="statusBadge.border">
           <span class="w-1.5 h-1.5 rounded-full" :class="statusBadge.dot" />
           <span class="font-bold tracking-wide">{{ statusBadge.label }}</span>
         </div>
-
         <!-- Botones de Acción Rápida con Glassmorphism -->
         <div class="flex flex-wrap items-center gap-1 sm:gap-1.5 text-[10px] sm:text-[10.5px]">
           <button type="button" @click="emit('openDigitalTwin')" class="min-h-[28px] sm:min-h-0 px-2 py-1 rounded-lg bg-cyan-950/50 hover:bg-cyan-900/60 border border-cyan-500/50 hover:border-cyan-400 text-cyan-200 font-bold transition flex items-center gap-1 shadow-[0_0_15px_rgba(6,182,212,0.3)] cursor-pointer active:scale-95 shrink-0" title="Gemelo Digital 3D interactivo">

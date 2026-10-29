@@ -1,7 +1,9 @@
 import { onMounted, onUnmounted } from 'vue'
 import {
   telemetry, history, sessions, selectedSessionId, activeSessionId,
-  wsConnected, usbConnected, operationMode, isSimulatorRunning, isModalOpen,
+  wsConnected, usbConnected, localLinkConnected, localLinkPort, operationMode,
+  motionState, localLinkInfo,
+  isSimulatorRunning, isModalOpen,
   lastPacketTime, lastPacketSource, nowTick, gyroTareOffset, shakeComboCount,
   viewMode, lastPacketAgeSec, hardwareStatus, isHardwareOnline,
   effectiveRiskStatus, currentSession, runtimeState
@@ -14,8 +16,8 @@ import {
   calibrateGyroZero, triggerGyroShake, triggerBabyRocking, triggerCustomEmotion
 } from './airGuardian/gyroActions'
 import {
-  disableBackendSimulator, forwardUsbTelemetryToBackend, ingestUsbSerialStatus,
-  markUsbDisconnected, connectWebSocket, fetchLiveTelemetry
+  disableBackendSimulator, ingestUsbSerialStatus,
+  markUsbDisconnected, connectWebSocket, fetchLiveTelemetry, fetchLocalLinkStatus
 } from './airGuardian/networkSync'
 import {
   runLocalMockStep, startLocalMock, stopLocalMock, setOperationMode, toggleSimulator
@@ -36,6 +38,7 @@ export function useAirGuardian() {
     disableBackendSimulator()
     connectWebSocket()
     fetchLiveTelemetry()
+    fetchLocalLinkStatus()
     fetchHistory()
     fetchSessions()
     if (operationMode.value === 'LOCAL') {
@@ -50,13 +53,19 @@ export function useAirGuardian() {
 
     if (runtimeState.fallbackPollingTimer) clearInterval(runtimeState.fallbackPollingTimer)
     runtimeState.fallbackPollingTimer = setInterval(() => {
+      if (operationMode.value !== 'LIVE') return
+      fetchLocalLinkStatus()
       const reconnectTimer = runtimeState.reconnectTimer
-      if (operationMode.value === 'LIVE' && !reconnectTimer) {
-        fetchLiveTelemetry()
-      } else if (operationMode.value === 'LIVE') {
+      const wsHealthy = wsConnected.value && !reconnectTimer
+      if (!wsHealthy && !localLinkInfo.value.connected) {
         fetchLiveTelemetry()
       }
     }, 2000)
+
+    if (runtimeState.localLinkTimer) clearInterval(runtimeState.localLinkTimer)
+    runtimeState.localLinkTimer = setInterval(() => {
+      fetchLocalLinkStatus()
+    }, 3000)
   })
 
   onUnmounted(() => {
@@ -70,19 +79,20 @@ export function useAirGuardian() {
     stopLocalMock()
     if (runtimeState.reconnectTimer) clearTimeout(runtimeState.reconnectTimer)
     if (runtimeState.fallbackPollingTimer) clearInterval(runtimeState.fallbackPollingTimer)
+    if (runtimeState.localLinkTimer) clearInterval(runtimeState.localLinkTimer)
     if (runtimeState.tickTimer) clearInterval(runtimeState.tickTimer)
     if (runtimeState.shakeTimer) clearInterval(runtimeState.shakeTimer)
-    if (runtimeState.usbIngestDebounceTimer) clearTimeout(runtimeState.usbIngestDebounceTimer)
   })
 
   return {
     telemetry, history, sessions, selectedSessionId, activeSessionId,
-    wsConnected, usbConnected, operationMode, isSimulatorRunning,
+    wsConnected, usbConnected, localLinkConnected, localLinkPort, operationMode,
+  motionState, localLinkInfo, isSimulatorRunning,
     hardwareStatus, isHardwareOnline, effectiveRiskStatus, lastPacketAgeSec,
     lastPacketTime, lastPacketSource, currentSession, isModalOpen, viewMode,
     gyroTareOffset, shakeComboCount,
-    ingestUsbSerialStatus, markUsbDisconnected, forwardUsbTelemetryToBackend,
-    disableBackendSimulator, connectWebSocket, fetchLiveTelemetry,
+    ingestUsbSerialStatus, markUsbDisconnected,
+    disableBackendSimulator, connectWebSocket, fetchLiveTelemetry, fetchLocalLinkStatus,
     mergeTelemetryLayers, applyBackendSample, applyLiveTelemetry,
     runLocalMockStep, startLocalMock, stopLocalMock, setOperationMode, toggleSimulator,
     sendRemoteEmotionCommand, toggleViewMode, toggleScreenViewMode,
@@ -91,3 +101,5 @@ export function useAirGuardian() {
     fetchSessions, fetchHistory, fetchAnalyticsSummary, compareSessions, exportDatasetUrl
   }
 }
+
+export { motionState, localLinkInfo } from './airGuardian/state'

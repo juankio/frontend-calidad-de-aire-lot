@@ -1,9 +1,12 @@
 import type { RawTelemetryPayload } from './types'
 import {
-  telemetry, wsConnected, usbConnected, operationMode, isSimulatorRunning,
-  lastPacketTime, lastPacketSource, nowTick, runtimeState, resolveApiConfig
+  telemetry, wsConnected, localLinkInfo, operationMode, isSimulatorRunning,
+  lastPacketTime, lastPacketSource, nowTick, runtimeState, resolveApiConfig,
+  motionState
 } from './state'
 import { mergeTelemetryLayers, applyBackendSample } from './parsers'
+
+const motionFrameTimes: number[] = []
 
 export function disableBackendSimulator() {
   const { apiBase } = resolveApiConfig()
@@ -14,48 +17,9 @@ export function disableBackendSimulator() {
   }).catch(() => {})
 }
 
-export function forwardUsbTelemetryToBackend() {
-  const { apiBase } = resolveApiConfig()
-  const t = telemetry.value
-  const payload = {
-    device_id: t.device_id || 'air-guardian-01',
-    timestamp: Math.floor(Date.now()),
-    ppm: Math.max(0, Math.min(10000, Number(t.ppm) || 400)),
-    co_ppm: Math.max(0, Math.min(2000, Number(t.co_ppm) || 0)),
-    temperature: Math.max(-40, Math.min(85, Number(t.temperature) || 24)),
-    humidity: Math.max(0, Math.min(100, Number(t.humidity) || 50)),
-    delta_ppm: Number(t.delta_ppm_1m) || 0,
-    raw_adc: Math.max(0, Math.min(4095, Math.round(Number(t.raw_adc) || 0))),
-    raw_adc7: Math.round(Number(t.raw_adc7 ?? t.mq7_raw) || 0),
-    mpu_connected: Boolean(t.mpu_connected),
-    eye_x: Math.abs(Number(t.roll) || 0) > 90
-      ? Number(((Number(t.roll) || 0) / 9.0).toFixed(2))
-      : (Number(t.eye_x) || 0),
-    eye_y: Number(t.eye_y) || 0,
-    pitch: Number(t.pitch) || 0,
-    roll: Number(t.roll) || 0,
-    ax: Number(t.ax) || 0,
-    ay: Number(t.ay) || 0,
-    az: Number(t.az ?? 9.8),
-    is_shaking: Boolean(t.is_shaking),
-    emotion: t.device_emotion || 'OPTIMAL',
-    view_mode: t.view_mode || 'FACE',
-    free_heap: Number(t.free_heap) || 184320,
-    uptime_s: Number(t.uptime_s) || 0,
-    offline_pending: Number(t.offline_pending) || 0
-  }
-
-  fetch(`${apiBase}/api/telemetry/ingest`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  }).catch(() => {})
-}
-
 export function ingestUsbSerialStatus(statusPayload: RawTelemetryPayload) {
   if (!statusPayload || typeof statusPayload !== 'object') return
 
-  usbConnected.value = true
   if (operationMode.value !== 'LIVE') {
     operationMode.value = 'LIVE'
     isSimulatorRunning.value = false
@@ -70,30 +34,10 @@ export function ingestUsbSerialStatus(statusPayload: RawTelemetryPayload) {
   lastPacketTime.value = now
   nowTick.value = now
   applyBackendSample({ ...statusPayload, timestamp: now, source: 'hardware' }, true)
-
-  if (now - runtimeState.lastUsbIngestSentAt >= 1500) {
-    runtimeState.lastUsbIngestSentAt = now
-    if (runtimeState.usbIngestDebounceTimer) {
-      clearTimeout(runtimeState.usbIngestDebounceTimer)
-      runtimeState.usbIngestDebounceTimer = null
-    }
-    forwardUsbTelemetryToBackend()
-  } else if (!runtimeState.usbIngestDebounceTimer) {
-    const delayMs = Math.max(100, 1500 - (now - runtimeState.lastUsbIngestSentAt))
-    runtimeState.usbIngestDebounceTimer = setTimeout(() => {
-      runtimeState.usbIngestDebounceTimer = null
-      runtimeState.lastUsbIngestSentAt = Date.now()
-      forwardUsbTelemetryToBackend()
-    }, delayMs)
-  }
 }
 
 export function markUsbDisconnected() {
-  usbConnected.value = false
-  if (runtimeState.usbIngestDebounceTimer) {
-    clearTimeout(runtimeState.usbIngestDebounceTimer)
-    runtimeState.usbIngestDebounceTimer = null
-  }
+  // no-op: usbConnected is derived from localLinkInfo
 }
 
 export function connectWebSocket() {
@@ -116,15 +60,40 @@ export function connectWebSocket() {
 
     ws.onmessage = (event) => {
       try {
-        const msg = JSON.parse(event.data) as Record<string, any>
+        const msg = JSON.parse(event.data) as Record<string, unknown>
         const msgType = String(msg.type || msg.event || '').toUpperCase()
-        const rawContainer = msg.payload ?? msg.data ?? (msg.raw || msg.processed ? msg : null)
-        if ((msgType === 'TELEMETRY_UPDATE' || msgType === 'TELEMETRY_BATCH') && rawContainer) {
-          if (usbConnected.value) return
-          const item = Array.isArray(rawContainer) ? rawContainer[rawContainer.length - 1] : rawContainer
-          if (!item) return
 
-          const combinedSample = mergeTelemetryLayers(item, item.raw, item.processed, item.prediction)
+        if (msgType === 'MOTION_UPDATE') {
+          const payload = (msg.payload ?? msg.data ?? msg) as Record<string, unknown> | null
+          if (payload && typeof payload === 'object') {
+            const now = Date.now()
+            motionFrameTimes.push(now)
+            const cutoff = now - 1000
+            while (motionFrameTimes.length > 0 && motionFrameTimes[0] < cutoff) motionFrameTimes.shift()
+
+            const ts = typeof payload.ts === 'number' ? payload.ts : now
+            motionState.value = {
+              ts,
+              pitch: Number(payload.pitch ?? payload.p ?? 0),
+              roll: Number(payload.roll ?? payload.r ?? 0),
+              ax: Number(payload.ax ?? 0),
+              ay: Number(payload.ay ?? 0),
+              az: Number(payload.az ?? 9.8),
+              emotion: String(payload.emotion ?? payload.e ?? 'OPTIMAL'),
+              shaking: Boolean(payload.shaking ?? payload.sh ?? false),
+              hz: motionFrameTimes.length,
+              ageMs: 0
+            }
+          }
+          return
+        }
+
+        const rawContainer = (msg.payload ?? msg.data ?? (msg.raw || msg.processed ? msg : null)) as unknown
+        if ((msgType === 'TELEMETRY_UPDATE' || msgType === 'TELEMETRY_BATCH') && rawContainer) {
+          const item = Array.isArray(rawContainer) ? rawContainer[rawContainer.length - 1] : rawContainer
+          if (!item || typeof item !== 'object') return
+
+          const combinedSample = mergeTelemetryLayers(item as RawTelemetryPayload, (item as RawTelemetryPayload).raw, (item as RawTelemetryPayload).processed, (item as RawTelemetryPayload).prediction)
           if (operationMode.value === 'LIVE' && combinedSample.source === 'simulator') return
 
           const rawTs = Number(combinedSample.timestamp || 0)
@@ -156,7 +125,6 @@ export function connectWebSocket() {
 }
 
 export async function fetchLiveTelemetry() {
-  if (usbConnected.value) return
   const { apiBase } = resolveApiConfig()
   try {
     const res = await fetch(`${apiBase}/api/telemetry/live`)
@@ -186,4 +154,40 @@ export async function fetchLiveTelemetry() {
       applyBackendSample({ ...sample, timestamp: ts || Date.now() }, false)
     }
   } catch {}
+}
+
+export async function fetchLocalLinkStatus() {
+  const { apiBase } = resolveApiConfig()
+  try {
+    const res = await fetch(`${apiBase}/api/hardware/link`)
+    if (!res.ok) return
+    const json = (await res.json()) as {
+      success?: boolean
+      data?: {
+        connected?: boolean
+        port?: string | null
+        baud?: number
+        baud_effective?: number
+        mot_hz?: number
+        tlm_hz?: number
+        mot_frames?: number
+        tlm_frames?: number
+        last_error?: string | null
+      }
+    }
+    if (!json.success || !json.data) return
+    const d = json.data
+    localLinkInfo.value = {
+      connected: Boolean(d.connected),
+      port: d.port ?? null,
+      baud: d.baud_effective ?? d.baud ?? localLinkInfo.value.baud,
+      motHz: d.mot_hz ?? localLinkInfo.value.motHz,
+      tlmHz: d.tlm_hz ?? localLinkInfo.value.tlmHz,
+      motFrames: d.mot_frames ?? localLinkInfo.value.motFrames,
+      tlmFrames: d.tlm_frames ?? localLinkInfo.value.tlmFrames,
+      lastError: d.last_error ?? null
+    }
+  } catch {
+    localLinkInfo.value = { ...localLinkInfo.value, connected: false, port: null }
+  }
 }
